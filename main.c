@@ -41,11 +41,12 @@ void main(void)
     SIOFARM_Init();
     SIO_Init();
     AD_Init();
-    LcInit(2, 16);
     JOY_Init();
     FARM_Init();
 
     ei();
+    LcInit(2, 16);
+    LcPutString("LCD OK");
 
     while (1) {
         SIOFARM_Motor();

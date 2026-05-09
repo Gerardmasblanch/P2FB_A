@@ -194,10 +194,12 @@ void LcMotor(void) {
 
         case LCD_OP_PUTCHAR:
             CantaData(LcdCharPendent);
+            TI_ResetTics(Timer);
             LcdEstat = LCD_OP_PUTCHAR_2;
             break;
 
         case LCD_OP_PUTCHAR_2:
+            if (TI_GetTics(Timer) == 0) break;
             // Ha passat >= 1 tic (412us) des de CantaData. Temps max escriptura LCD = 53us.
             // Podem enviar SET_DDRAM directament sense busy-check.
             ++ColumnAct;
@@ -223,9 +225,11 @@ void LcMotor(void) {
             break;
 
         case LCD_OP_PUTSTRING:
+            if (TI_GetTics(Timer) == 0) break;
             if (*LcdStringPendent) {
                 LcdCharPendent = *LcdStringPendent++;
                 CantaData(LcdCharPendent);
+                TI_ResetTics(Timer);
                 LcdEstat = LCD_OP_PUTSTRING_2;
             } else {
                 LcdEstat = LCD_IDLE;
@@ -233,6 +237,7 @@ void LcMotor(void) {
             break;
 
         case LCD_OP_PUTSTRING_2:
+            if (TI_GetTics(Timer) == 0) break;
             // Ha passat >= 1 tic (412us) des de CantaData -> podem actuar sense busy-check.
             // Si hi ha wrap, AplicaGotoXY envia SET_DDRAM; el seguent tic torna a PUTSTRING
             // que fa CantaData, amb >= 412us de marge (temps max SET_DDRAM = 37us). Segur.
@@ -275,6 +280,9 @@ void LcInit(char rows, char columns) {
     LcdEstat = LCD_IDLE;
     IniciCua = FiCua = QuantsOrdres = 0;
     SetControlsSortida();
+    RSDown();
+    RWDown();
+    EnableDown();
     for (i = 0; i < 2; i++) {
         Espera(100);                                                        // >= 41.2ms
         EscriuPrimeraOrdre(CURSOR_ON | DISPLAY_CLEAR);
@@ -290,7 +298,7 @@ void LcInit(char rows, char columns) {
         WaitForBusy(); CantaIR(DISPLAY_CLEAR);                              // Esborrar
         Espera(4);                                                          // >= 1.648ms (V1.1)
         WaitForBusy(); CantaIR(DISPLAY_ON | CURSOR_ON);                     // Entry mode
-        WaitForBusy(); CantaIR(DISPLAY_CONTROL | DISPLAY_ON | CURSOR_ON | DISPLAY_CLEAR); // Display On
+        WaitForBusy(); CantaIR(DISPLAY_CONTROL | DISPLAY_ON);               // Display On sense cursor
     }
 }
 
@@ -443,6 +451,7 @@ static void AplicaGotoXY(unsigned char col, unsigned char row) {
             break;
     }
     CantaIR(SET_DDRAM | Fisics);
+    TI_ResetTics(Timer);
     RowAct    = row;
     ColumnAct = col;
 }

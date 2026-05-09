@@ -20,7 +20,7 @@
 
 #define SetD4_D7Sortida()   (TRISBbits.TRISB4 = TRISBbits.TRISB3 = TRISBbits.TRISB1 = TRISBbits.TRISB0 = 0)
 #define SetD4_D7Entrada()   (TRISBbits.TRISB4 = TRISBbits.TRISB3 = TRISBbits.TRISB1 = TRISBbits.TRISB0 = 1)
-#define SetControlsSortida()(TRISBbits.TRISB3 = TRISBbits.TRISB1 = TRISBbits.TRISB0 = 0)
+#define SetControlsSortida()(TRISBbits.TRISB7 = TRISBbits.TRISB6 = TRISBbits.TRISB5 = 0)
 #define SetD4(On)           (LATBbits.LATB4 = (On))
 #define SetD5(On)           (LATBbits.LATB3 = (On))
 #define SetD6(On)           (LATBbits.LATB1 = (On))
