@@ -7,7 +7,6 @@
 #include "TAD_SIOFARM.H"
 #include "TAD_SIO.H"
 #include "TAD_ADC.H"
-#include "TAD_LDR.H"
 #include "TAD_JOYSTICK.H"
 #include "TAD_FARM.H"
 
@@ -41,7 +40,6 @@ void main(void)
     SIOFARM_Init();
     SIO_Init();
     AD_Init();
-    LDR_Init();
     JOY_Init();
     FARM_Init();
 

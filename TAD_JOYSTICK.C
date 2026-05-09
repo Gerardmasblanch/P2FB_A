@@ -8,8 +8,8 @@
 #define LLINDAR_BAIX  80
 #define LLINDAR_ALT   175
 
-#define CANAL_JOYX_AN 0   // RA5 / AN4
-#define CANAL_JOYY_AN 1   // RE0 / AN5
+#define CANAL_JOYX_AN 0   // RA0 / AN0
+#define CANAL_JOYY_AN 1   // RA1 / AN1
 
 #define PIN_BOTO PORTBbits.RB2
 
@@ -18,9 +18,6 @@
 #define CMD_JOY_LEFT   "MOVE_LEFT\r\n"
 #define CMD_JOY_RIGHT  "MOVE_RIGHT\r\n"
 #define CMD_JOY_SELECT "SELECT\r\n"
-
-static unsigned char indexX;
-static unsigned char indexY;
 
 // estat intern per a deteccio de flancs
 static unsigned char direccioActual;       // direccio fisica que esta llegint el ADC ara mateix
@@ -62,8 +59,8 @@ static unsigned char DireccioFisica(void)
     unsigned char valX;
     unsigned char valY;
 
-    valX = AD_GetMostra(indexX);
-    valY = AD_GetMostra(indexY);
+    valX = AD_GetMostra(CANAL_JOYX_AN);
+    valY = AD_GetMostra(CANAL_JOYY_AN);
 
     if(valY < LLINDAR_BAIX)  return JOY_AMUNT;
     if(valY > LLINDAR_ALT)   return JOY_AVALL;
@@ -80,9 +77,6 @@ void JOY_Init(void)
 
     // activa pull-up intern del PORTB
     INTCON2bits.RBPU = 0;
-
-    indexX = AD_RegistraCanal(CANAL_JOYX_AN);
-    indexY = AD_RegistraCanal(CANAL_JOYY_AN);
 
     direccioActual = JOY_CENTRE;
     direccioPendent = JOY_CENTRE;
