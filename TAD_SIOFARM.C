@@ -3,13 +3,6 @@
 #include "TAD_TIMER.H"
 #include "TAD_SIOFARM.H"
 
-/*
- * RD1 = TX, RD0 = RX
- * 2 tics = 1 bit a 1200 bauds (Timer0 a 417 us)
- * Amb 2 tics/bit la deteccio del start pot arribar fins a 1 tic tard.
- * Per aixo el primer bit es mostra al cap de 2 tics i no de 3.
- */
-
 #define PIN_TX LATDbits.LATD1
 #define PIN_RX PORTDbits.RD0
 
@@ -222,10 +215,25 @@ static void MotorRx(void) {
 
 /*
  * Cicle de funcionament:
- * - Per enviar, SIOFARM_EnviaCaracter() posa el byte a cuaTx.
- *   El motor TX el treu de la cua i el passa per RD1: start, 8 bits i stop.
- * - Per rebre, el motor RX vigila RD0. Quan veu el start, llegeix els 8 bits,
- *   comprova el stop i guarda el byte a cuaRx.
- * - El TAD que ho necessiti consulta SIOFARM_HiHaCaracter() i extreu el byte
- *   amb SIOFARM_LlegeixCaracter().
+ *
+ * repos:  1 1 1 1 1
+ * start:  0
+ * dades:  b0 b1 b2 b3 b4 b5 b6 b7
+ * stop:   1
+ * repos:  1 1 1...
+ *
+ * caracterRx es un unsigned char, per tant te 8 bits i no cal cap array.
+ *
+ * Exemple rebent dades: 0 1 1 0 1 0 1 0
+ *
+ * caracterRx inicial = 00000000
+ *
+ * bitRx = 1, dada = 1 -> caracterRx |= (1 << 1) -> 00000010
+ * bitRx = 2, dada = 1 -> caracterRx |= (1 << 2) -> 00000110
+ * bitRx = 4, dada = 1 -> caracterRx |= (1 << 4) -> 00010110
+ * bitRx = 6, dada = 1 -> caracterRx |= (1 << 6) -> 01010110
+ *
+ * Els bits que arriben a 0 no es toquen, perque caracterRx ja comenca a 0.
+ * Al final caracterRx conte el byte complet i es guarda a cuaRx.
+ * En TX, bitTx = 9 es el stop bit, no una dada mes.
  */
