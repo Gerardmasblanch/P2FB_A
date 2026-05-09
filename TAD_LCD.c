@@ -1,6 +1,6 @@
 #include <xc.h>
-#include "TAD_TIMER.h"
-#include "TAD_LCD.h"
+#include "TAD_TIMER.H"
+#include "TAD_LCD.H"
 
 
 //

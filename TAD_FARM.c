@@ -3,7 +3,6 @@
 #include "TAD_SIOFARM.H"
 #include "TAD_SIO.H"
 #include "TAD_FARM.H"
-#include "TAD_LCD.H"
 
 #define ESTAT_DEMANAR_DATA    0
 #define ESTAT_LLEGIR_DATA     1
@@ -15,7 +14,6 @@
 #define CMD_INITIALIZE "INITIALIZE:"
 #define LONG_CMD_INITIALIZE 11
 #define LONG_JAVA 64
-#define NOM_GRANJA 20
 
 static char    bufferData[LONG_DATA + 1];
 static char    bufferJava[LONG_JAVA + 1];
@@ -30,38 +28,11 @@ static unsigned char estat;
 static unsigned char idxJava;
 static unsigned char overflowJava;
 
-
 static unsigned char dia, mes, hora, minut, segon;
-static unsigned char NomGranja[NOM_GRANJA + 1];
-static unsigned char Tvaca, Tcavall, Tporc, Tgallina;
-
-
 
 /* -------------------------------------------------- */
 /* Cua de sortida                                     */
 /* -------------------------------------------------- */
-
-static void GuardaInit(const char *bufferjava){
-
-    unsigned char i = 11;
-    unsigned char j = 0;
-
-    while (bufferjava[i] != '$'){
-        bufferjava[i] = NomGranja[j]; 
-        j++;
-        i++;
-    }
-
-    i++;
-    NomGranja[j] = '\0';
-    
-    Tvaca = bufferjava[i];
-    Tcavall = bufferjava[i+1];
-    Tporc = bufferjava[i+2];
-    Tgallina = bufferjava[i+3];
-    
-    return;
-}
 
 static void EncuaCadena(const char *s)
 {
@@ -236,7 +207,8 @@ void FARM_Motor(void)
     if (EstaEnviantCadena()) return;
 
     // 3. ara nomes processem RX si la cua de TX esta lliure
-    switch(estat) {
+    switch(estat)
+    {
         case ESTAT_DEMANAR_DATA:
             EncuaCadena("\r\n=== LSFarm ===\r\nData i hora (DD/MM HH:MM:SS): ");
             idxBuffer = 0;
@@ -255,15 +227,12 @@ void FARM_Motor(void)
                 EnviaEco('\r');
                 EnviaEco('\n');
 
-                bufferData[idxBuffer] = '\0';
+                bufferData[idxBuffer] = 0;
 
                 if (!overflowBuffer && ValidaData()) {
                     EncuaCadena("Data correcta. Esperant INITIALIZE de Java...\r\n");
                     ReiniciaRecepcioJava();
-                    //Lc_PutString(bufferData);
-                   
                     estat = ESTAT_ESPERAR_JAVA;
-
                 }
                 else {
                     EncuaCadena("Data incorrecta. Format: DD/MM HH:MM:SS\r\n");
@@ -297,21 +266,10 @@ void FARM_Motor(void)
             if (ProcessaCaracterJava((unsigned char)c)) {
                 EncuaCadena("INITIALIZE rebut.\r\n");
                 estat = ESTAT_FUNCIONAMENT;
-                GuardaInit(bufferJava);
-                Lc_PutString(bufferData);
             }
-
             break;
 
         case ESTAT_FUNCIONAMENT:
-            
-            
-
-            
-            
-            
-
-        
             break;
     }
 }
