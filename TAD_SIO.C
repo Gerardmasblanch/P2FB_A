@@ -104,6 +104,7 @@ unsigned char SIO_TXAvail(void) {
 void SIO_PutChar(unsigned char ElValor) {
     if((PIR1bits.TXIF == 1) && (QuantsTX == 0)) {
         TXREG = ElValor;
+        
     } else {
         di();
 

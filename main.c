@@ -9,6 +9,7 @@
 #include "TAD_ADC.H"
 #include "TAD_JOYSTICK.H"
 #include "TAD_FARM.H"
+#include "TAD_LCD.H"
 
 #pragma config OSC    = HS
 #pragma config PBADEN = DIG
@@ -42,10 +43,14 @@ void main(void)
     AD_Init();
     JOY_Init();
     FARM_Init();
+    LcInit(2, 16);
 
     ei();
 
     while (1) {
+        
+        LcMotor();
+        AD_Motor();
         SIOFARM_Motor();
         AD_Motor();
         JOY_Motor();

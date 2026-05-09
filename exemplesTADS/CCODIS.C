@@ -38,7 +38,6 @@ void CCODIS_motor(void) {
                 estatCC = 2; 
             } else {
                 estatCC = 3;
-            
             }
             break;
 
