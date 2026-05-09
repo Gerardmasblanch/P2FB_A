@@ -13,57 +13,43 @@
 #define PIN_TX LATDbits.LATD1
 #define PIN_RX PORTDbits.RD0
 
-#define MASK_CUA_SIOFARM 0x0F
+#define MIDA_CUA 16
+#define MASK_CUA 0x0F
 
-#define TICS_PER_BIT      2
-#define TICS_AL_CENTRE_0  2
-
-#define TX_REPOS    0
-#define TX_ENVIANT  1
-
-#define RX_ESPERA_START   0
-#define RX_ESPERA_BIT     1
-#define RX_ESPERA_STOP    2
-
-/* ---------------------- Cua TX ---------------------- */
-static volatile char          cuaTx[MIDA_CUA_SIOFARM];
+static volatile char cuaTx[MIDA_CUA];
 static volatile unsigned char escriureTx;
 static volatile unsigned char llegirTx;
 static volatile unsigned char quantsTx;
 
-/* ---------------------- Cua RX ---------------------- */
-static volatile char          cuaRx[MIDA_CUA_SIOFARM];
+static volatile char cuaRx[MIDA_CUA];
 static volatile unsigned char escriureRx;
 static volatile unsigned char llegirRx;
 static volatile unsigned char quantsRx;
 
-/* ---------------------- Variables TX ---------------------- */
 static unsigned char estatTx;
 static unsigned char caracterTx;
 static unsigned char bitTx;
 static unsigned char ticsTx;
 
-/* ---------------------- Variables RX ---------------------- */
 static unsigned char estatRx;
 static unsigned char caracterRx;
 static unsigned char bitRx;
 static unsigned char ticsRx;
 
-/* Timer per fer avancar el bit-banging des del bucle principal */
 static unsigned char timerSioFarm;
+static unsigned char quantsAux;
+static unsigned char enviatAux;
+static char caracterAux;
 
-/* ---------------------- Init ---------------------- */
+static void MotorTx(void);
+static void MotorRx(void);
 
-void SIOFARM_Init(void)
-{
-    /* TX (RD1) com a sortida en idle alt */
-    LATDbits.LATD1 = 1;
-    TRISDbits.TRISD1 = 0;
+void SIOFARM_Init(void) {
+    LATDbits.LATD1 = 1;    // deixa TX en repos alt
+    TRISDbits.TRISD1 = 0;  // com a output
 
-    /* RX (RD0) com a entrada */
-    TRISDbits.TRISD0 = 1;
+    TRISDbits.TRISD0 = 1;  // com a input
 
-    /* cues */
     escriureTx = 0;
     llegirTx = 0;
     quantsTx = 0;
@@ -72,55 +58,43 @@ void SIOFARM_Init(void)
     llegirRx = 0;
     quantsRx = 0;
 
-    /* estats */
-    estatTx = TX_REPOS;
-    estatRx = RX_ESPERA_START;
+    estatTx = 0;
+    estatRx = 0;
 
     TI_NewTimer(&timerSioFarm);
     TI_ResetTics(timerSioFarm);
 }
 
-/* ---------------------- API publica ---------------------- */
-
-unsigned char SIOFARM_EnviaCaracter(char caracter)
-{
-    unsigned char enviat;
-
-    enviat = 0;
+unsigned char SIOFARM_EnviaCaracter(char caracter) {
+    enviatAux = 0;
 
     di();
 
-    if(quantsTx >= MIDA_CUA_SIOFARM) {
+    if(quantsTx >= MIDA_CUA) {
         ei();
         return 0;
     }
 
     cuaTx[escriureTx] = caracter;
     escriureTx++;
-    escriureTx &= MASK_CUA_SIOFARM;
+    escriureTx &= MASK_CUA;
     quantsTx++;
 
     ei();
 
-    enviat = 1;
-    return enviat;
+    enviatAux = 1;
+    return enviatAux;
 }
 
-unsigned char SIOFARM_HiHaCaracter(void)
-{
-    unsigned char quants;
-
+unsigned char SIOFARM_HiHaCaracter(void) {
     di();
-    quants = quantsRx;
+    quantsAux = quantsRx;
     ei();
 
-    return quants;
+    return quantsAux;
 }
 
-char SIOFARM_LlegeixCaracter(void)
-{
-    char c;
-
+char SIOFARM_LlegeixCaracter(void) {
     di();
 
     if(quantsRx == 0) {
@@ -128,126 +102,18 @@ char SIOFARM_LlegeixCaracter(void)
         return 0;
     }
 
-    c = cuaRx[llegirRx];
+    caracterAux = cuaRx[llegirRx];
     llegirRx++;
-    llegirRx &= MASK_CUA_SIOFARM;
+    llegirRx &= MASK_CUA;
     quantsRx--;
 
     ei();
 
-    return c;
+    return caracterAux;
 }
 
-/* ---------------------- Motor TX ---------------------- */
-
-static void MotorTx(void)
-{
-    switch(estatTx)
-    {
-        case TX_REPOS:
-
-            PIN_TX = 1;
-
-            if(quantsTx > 0) {
-                caracterTx = cuaTx[llegirTx];
-                llegirTx++;
-                llegirTx &= MASK_CUA_SIOFARM;
-                quantsTx--;
-
-                PIN_TX = 0;     /* start bit */
-                bitTx = 0;
-                ticsTx = TICS_PER_BIT;
-                estatTx = TX_ENVIANT;
-            }
-            break;
-
-        case TX_ENVIANT:
-
-            ticsTx--;
-
-            if(ticsTx == 0) {
-                bitTx++;
-
-                if(bitTx <= 8) {
-                    PIN_TX = caracterTx & 0x01;
-                    caracterTx >>= 1;
-                }
-                else if(bitTx == 9) {
-                    PIN_TX = 1;     /* stop bit */
-                }
-                else {
-                    PIN_TX = 1;
-                    estatTx = TX_REPOS;
-                    return;
-                }
-
-                ticsTx = TICS_PER_BIT;
-            }
-            break;
-    }
-}
-
-/* ---------------------- Motor RX ---------------------- */
-
-static void MotorRx(void)
-{
-    switch(estatRx)
-    {
-        case RX_ESPERA_START:
-
-            if(PIN_RX == 0) {
-                caracterRx = 0;
-                bitRx = 0;
-                ticsRx = TICS_AL_CENTRE_0;
-                estatRx = RX_ESPERA_BIT;
-            }
-            break;
-
-        case RX_ESPERA_BIT:
-
-            ticsRx--;
-
-            if(ticsRx == 0) {
-                if(PIN_RX == 1) {
-                    caracterRx |= (1 << bitRx);
-                }
-
-                bitRx++;
-
-                if(bitRx >= 8) {
-                    ticsRx = TICS_PER_BIT;
-                    estatRx = RX_ESPERA_STOP;
-                }
-                else {
-                    ticsRx = TICS_PER_BIT;
-                }
-            }
-            break;
-
-        case RX_ESPERA_STOP:
-
-            ticsRx--;
-
-            if(ticsRx == 0) {
-                if(PIN_RX == 1) {
-                    if(quantsRx < MIDA_CUA_SIOFARM) {
-                        cuaRx[escriureRx] = caracterRx;
-                        escriureRx++;
-                        escriureRx &= MASK_CUA_SIOFARM;
-                        quantsRx++;
-                    }
-                }
-                estatRx = RX_ESPERA_START;
-            }
-            break;
-    }
-}
-
-/* ---------------------- Motor unic ---------------------- */
-
-void SIOFARM_Motor(void)
-{
-    if(INTCONbits.GIE == 0) {
+void SIOFARM_Motor(void) {
+    if(INTCONbits.GIE == 0) {  // evita avancar el motor si encara som dins una interrupcio
         return;
     }
 
@@ -259,3 +125,107 @@ void SIOFARM_Motor(void)
     MotorTx();
     MotorRx();
 }
+
+static void MotorTx(void) {
+    switch(estatTx) {
+        case 0: // TX repos
+
+            PIN_TX = 1;
+
+            if(quantsTx > 0) {
+                caracterTx = cuaTx[llegirTx];
+                llegirTx++;
+                llegirTx &= MASK_CUA;
+                quantsTx--;
+
+                PIN_TX = 0;     // start bit
+                bitTx = 0;
+                ticsTx = 2;
+                estatTx = 1;
+            }
+            break;
+
+        case 1: // TX enviant
+
+            ticsTx--;
+
+            if(ticsTx == 0) {
+                bitTx++;
+
+                if(bitTx <= 8) {
+                    PIN_TX = caracterTx & 0x01;
+                    caracterTx >>= 1;
+                } else if(bitTx == 9) {
+                    PIN_TX = 1;     // stop bit
+                } else {
+                    PIN_TX = 1;
+                    estatTx = 0;
+                    return;
+                }
+
+                ticsTx = 2;
+            }
+            break;
+    }
+}
+
+static void MotorRx(void) {
+    switch(estatRx) {
+        case 0: // RX espera start
+
+            if(PIN_RX == 0) {
+                caracterRx = 0;
+                bitRx = 0;
+                ticsRx = 2;
+                estatRx = 1;
+            }
+            break;
+
+        case 1: // RX espera bit
+
+            ticsRx--;
+
+            if(ticsRx == 0) {
+                if(PIN_RX == 1) {
+                    caracterRx |= (1 << bitRx);
+                }
+
+                bitRx++;
+
+                if(bitRx >= 8) {
+                    ticsRx = 2;
+                    estatRx = 2;
+                } else {
+                    ticsRx = 2;
+                }
+            }
+            break;
+
+        case 2: // RX espera stop
+
+            ticsRx--;
+
+            if(ticsRx == 0) {
+                if(PIN_RX == 1) {
+                    if(quantsRx < MIDA_CUA) {
+                        cuaRx[escriureRx] = caracterRx;
+                        escriureRx++;
+                        escriureRx &= MASK_CUA;
+                        quantsRx++;
+                    }
+                }
+                estatRx = 0;
+            }
+            break;
+    }
+}
+
+/*
+ * Cicle de funcionament:
+ * - Per enviar, SIOFARM_EnviaCaracter() posa el byte a cuaTx.
+ *   El motor TX el treu de la cua i el passa per RD1: start, 8 bits i stop.
+ * - Per rebre, el motor RX vigila RD0. Quan veu el start, llegeix els 8 bits,
+ *   comprova el stop i guarda el byte a cuaRx.
+ * - El TAD que ho necessiti consulta SIOFARM_HiHaCaracter() i extreu el byte
+ *   amb SIOFARM_LlegeixCaracter().
+ */
