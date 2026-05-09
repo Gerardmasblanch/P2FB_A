@@ -21,4 +21,8 @@ unsigned char JOY_BotoNouPremut(void);
 // Cal cridar-lo periodicament des del bucle principal.
 void          JOY_Motor(void);
 
+// Envia a Java el moviment pendent del joystick amb el protocol de la UI.
+// Cal cridar-lo despres de JOY_Motor().
+void          JOY_MotorInterficie(void);
+
 #endif

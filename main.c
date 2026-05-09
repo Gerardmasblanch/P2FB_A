@@ -51,6 +51,7 @@ void main(void)
         SIOFARM_Motor();
         AD_Motor();
         JOY_Motor();
+        JOY_MotorInterficie();
         FARM_Motor();
     }
 }
