@@ -4,158 +4,89 @@
 #include "TAD_SIO.H"
 #include "TAD_JOYSTICK.H"
 
-// El joystick en repos = ~128. Posem llindars amb zona morta.
-#define LLINDAR_BAIX  80
-#define LLINDAR_ALT   175
+#define C_UP "MOVE_UP\r\n"
+#define C_DOWN "MOVE_DOWN\r\n"
+#define C_LEFT "MOVE_LEFT\r\n"
+#define C_RIGHT "MOVE_RIGHT\r\n"
+#define C_SELECT "SELECT\r\n"
 
-#define CANAL_JOYX_AN 0   // RA0 / AN0
-#define CANAL_JOYY_AN 1   // RA1 / AN1
+static unsigned char direccioActual;
+static unsigned char direccioNova;
+static unsigned char botoAnterior;
+static unsigned char botoActual;
+static unsigned char estat;
 
-#define PIN_BOTO PORTBbits.RB2
+void JOY_Init(void) {
+    TRISBbits.TRISB2 = 1;   // boto 
+    INTCON2bits.RBPU = 0;   // pull-ups del PORTB activades
 
-#define CMD_JOY_UP     "MOVE_UP\r\n"
-#define CMD_JOY_DOWN   "MOVE_DOWN\r\n"
-#define CMD_JOY_LEFT   "MOVE_LEFT\r\n"
-#define CMD_JOY_RIGHT  "MOVE_RIGHT\r\n"
-#define CMD_JOY_SELECT "SELECT\r\n"
-
-// estat intern per a deteccio de flancs
-static unsigned char direccioActual;       // direccio fisica que esta llegint el ADC ara mateix
-static unsigned char direccioPendent;      // moviment pendent de ser consumit (0 = res)
-static unsigned char botoEstatAnterior;    // 1 si l'ultim cicle el boto estava premut
-static unsigned char botoNouFlanc;         // 1 si s'acaba de detectar premuda
-
-static unsigned char LongitudCadena(const char *s)
-{
-    unsigned char i;
-
-    i = 0;
-    while(s[i] != 0) {
-        i++;
-    }
-
-    return i;
+    direccioActual = 0;
+    direccioNova = 0;
+    botoAnterior = 0;
+    botoActual = 0;
+    estat = 0;
 }
 
-static unsigned char EnviaJavaSiHiHaEspai(const char *s)
-{
-    unsigned char i;
-    unsigned char longitud;
+void JOY_Motor(void) {
+    switch(estat) {
+        case 0:
+            direccioNova = 0;
+            botoActual = (PORTBbits.RB2 == 0) ? 1 : 0;
 
-    longitud = LongitudCadena(s);
-    if(SIO_TXAvail() < longitud) {
-        return 0;
-    }
+            // GetMostra 0-->X 1-->Y
+            if(AD_GetMostra(1) < 80) {
+                direccioNova = 1; // UP
+            } else if(AD_GetMostra(1) > 175) {
+                direccioNova = 2; // DOWN
+            } else if(AD_GetMostra(0) < 80) {
+                direccioNova = 3; // LEFT
+            } else if(AD_GetMostra(0) > 175) {
+                direccioNova = 4; // RIGHT
+            }
 
-    for(i = 0; i < longitud; i++) {
-        SIO_PutChar((unsigned char)s[i]);
-    }
+            if(botoActual && !botoAnterior) {
+                estat = 5; // SELECT
+            } else if(direccioActual == 0 && direccioNova != 0) {
+                estat = direccioNova;
+            }
 
-    return 1;
-}
-
-static unsigned char DireccioFisica(void)
-{
-    unsigned char valX;
-    unsigned char valY;
-
-    valX = AD_GetMostra(CANAL_JOYX_AN);
-    valY = AD_GetMostra(CANAL_JOYY_AN);
-
-    if(valY < LLINDAR_BAIX)  return JOY_AMUNT;
-    if(valY > LLINDAR_ALT)   return JOY_AVALL;
-    if(valX < LLINDAR_BAIX)  return JOY_ESQ;
-    if(valX > LLINDAR_ALT)   return JOY_DRETA;
-
-    return JOY_CENTRE;
-}
-
-void JOY_Init(void)
-{
-    // boto a RB2 com a entrada digital
-    TRISBbits.TRISB2 = 1;
-
-    // activa pull-up intern del PORTB
-    INTCON2bits.RBPU = 0;
-
-    direccioActual = JOY_CENTRE;
-    direccioPendent = JOY_CENTRE;
-    botoEstatAnterior = 0;
-    botoNouFlanc = 0;
-}
-
-void JOY_Motor(void)
-{
-    unsigned char direccioNova;
-    unsigned char botoEstatActual;
-
-    // ---- direccio: deteccio de moviment ----
-    direccioNova = DireccioFisica();
-
-    // si abans estavem al centre i ara hi ha moviment, registrem-lo
-    if(direccioActual == JOY_CENTRE && direccioNova != JOY_CENTRE) {
-        direccioPendent = direccioNova;
-    }
-
-    direccioActual = direccioNova;
-
-    // ---- boto: deteccio de flanc de premuda ----
-    botoEstatActual = (PIN_BOTO == 0) ? 1 : 0;   // active LOW
-
-    if(botoEstatActual && !botoEstatAnterior) {
-        botoNouFlanc = 1;       // acaba de baixar (premuda)
-    }
-
-    botoEstatAnterior = botoEstatActual;
-}
-
-unsigned char JOY_GetMoviment(void)
-{
-    unsigned char mov;
-
-    mov = direccioPendent;
-    direccioPendent = JOY_CENTRE;   // consumit
-    return mov;
-}
-
-unsigned char JOY_BotoNouPremut(void)
-{
-    unsigned char res;
-
-    res = botoNouFlanc;
-    botoNouFlanc = 0;               // consumit
-    return res;
-}
-
-void JOY_MotorInterficie(void)
-{
-    unsigned char moviment;
-
-    moviment = JOY_GetMoviment();
-
-    switch(moviment)
-    {
-        case JOY_AMUNT:
-            EnviaJavaSiHiHaEspai(CMD_JOY_UP);
+            direccioActual = direccioNova;
+            botoAnterior = botoActual; // guarda si estava premut per detectar nomes el flanc
             break;
 
-        case JOY_AVALL:
-            EnviaJavaSiHiHaEspai(CMD_JOY_DOWN);
+        case 1:  // comanda mes llarga --> MOVE_RIGHT\r\n 12 caracters
+            if(SIO_TXAvail() >= 12) {
+                SIO_PutString(C_UP);
+                estat = 0;
+            }
             break;
 
-        case JOY_ESQ:
-            EnviaJavaSiHiHaEspai(CMD_JOY_LEFT);
+        case 2: 
+            if(SIO_TXAvail() >= 12) { 
+                SIO_PutString(C_DOWN);
+                estat = 0;
+            }
             break;
 
-        case JOY_DRETA:
-            EnviaJavaSiHiHaEspai(CMD_JOY_RIGHT);
+        case 3: 
+            if(SIO_TXAvail() >= 12) { 
+                SIO_PutString(C_LEFT);
+                estat = 0;
+            }
             break;
 
-        default:
+        case 4: 
+            if(SIO_TXAvail() >= 12) { 
+                SIO_PutString(C_RIGHT);
+                estat = 0;
+            }
             break;
-    }
 
-    if(JOY_BotoNouPremut()) {
-        EnviaJavaSiHiHaEspai(CMD_JOY_SELECT);
+        case 5:
+            if(SIO_TXAvail() >= 12) { 
+                SIO_PutString(C_SELECT);
+                estat = 0;
+            }
+            break;
     }
 }
