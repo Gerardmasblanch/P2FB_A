@@ -13,15 +13,11 @@
 // 65536 - 64496 = 1040 counts x 0.4us = 416us
 #define T0CON_CONFIG 0x88
 #define RECARREGA_TMR0 64496        // 417 us, suposant FOsc a 10MHz.
-#define TI_NUMTIMERS 10             // Nombre de timers virtuals gestionats per aquest TAD. Si cal, s'incrementa o es disminueix...
+#define TI_NUMTIMERS 6              // ADC, SIOFARM, LCD i 3 timers del FARM
 
-// VARIABLES GLOBALS DEL TAD
-struct Timer {
-	unsigned long TicsInicials;
-	unsigned char Busy;
-} static Timers[TI_NUMTIMERS];
-
-static volatile unsigned long Tics=0;
+static unsigned int Timers[TI_NUMTIMERS];
+static unsigned char SeguentTimer;
+static volatile unsigned int Tics = 0;
 
 void RSI_Timer0 () {
     // Pre: IMPORTANT! Funci� que ha der ser cridada des de la RSI, en en cas que TMR0IF==1.
@@ -31,9 +27,7 @@ void RSI_Timer0 () {
 }
 
 void TI_Init () {
-	for (unsigned char counter=0; counter<TI_NUMTIMERS; counter++) {
-		Timers[counter].Busy=TI_FALS;
-	}
+    SeguentTimer = 0;
 	T0CON=T0CON_CONFIG;
     TMR0=RECARREGA_TMR0;
 	INTCONbits.TMR0IF = 0;
@@ -42,29 +36,21 @@ void TI_Init () {
 }
 
 unsigned char TI_NewTimer(unsigned char *TimerHandle) {
-	unsigned char Comptador=0;
-	while (Timers[Comptador].Busy==TI_CERT) {
-		if (++Comptador == TI_NUMTIMERS) return (TI_FALS);
-	}
-	Timers[Comptador].Busy=TI_CERT;
-	*TimerHandle=Comptador;
+    if(SeguentTimer == TI_NUMTIMERS) return TI_FALS;
+	*TimerHandle = SeguentTimer;
+    SeguentTimer++;
     return (TI_CERT);
 }
 
 //TICS = 0 || copia a TicsInicials = Tics: copia el q val tics a TicsInicials
 void TI_ResetTics (unsigned char TimerHandle) {
-	di(); Timers[TimerHandle].TicsInicials=Tics; ei();
+	di(); Timers[TimerHandle]=Tics; ei();
 }
 
 // RETURN TICS || RETURN (tics - TicsInicials)
-unsigned long TI_GetTics (unsigned char TimerHandle) {
-    di(); unsigned long CopiaTicsActual=Tics; ei();
-	return (CopiaTicsActual-(Timers[TimerHandle].TicsInicials));
+unsigned int TI_GetTics (unsigned char TimerHandle) {
+    unsigned int CopiaTicsActual;
+    di(); CopiaTicsActual=Tics; ei();
+	return (CopiaTicsActual-Timers[TimerHandle]);
 }
 
-void TI_CloseTimer (unsigned char TimerHandle) {
-	Timers[TimerHandle].Busy=TI_FALS;
-}
-
-void TI_End () {
-}

@@ -46,14 +46,12 @@ void main(void)
 
     ei();
     LcInit(2, 16);
-    LcPutString("LCD OK");
 
     while (1) {
         SIOFARM_Motor();
         LcMotor();
         AD_Motor();
         JOY_Motor();
-        JOY_MotorInterficie();
         FARM_Motor();
     }
 }

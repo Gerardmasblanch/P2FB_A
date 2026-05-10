@@ -1,7 +1,7 @@
 #ifndef TAD_LCD_H
 #define TAD_LCD_H
 //
-// ADT for manipulating the alphanumeric display of the
+// ADT del display alfanumeric
 // HD44780 controller using only 4 data bits.
 //
 // Versio cooperativa amb cua FIFO de 3 ordres pendents.
@@ -41,23 +41,12 @@ void LcInit(char rows, char columns);
 // Post: BLOQUEJANT (~100ms). Pantalla neta, cursor apagat, posicio (0,0).
 //       Cua d'ordres buida.
 
-void LcEnd(void);
-
 unsigned char LcClear(void);
 // Post: Encola una ordre Clear. Retorna 1 si encolada, 0 si la cua esta plena.
-
-unsigned char LcCursorOn(void);
-// Post: Encola activacio del cursor. Retorna 1/0 segons disponibilitat.
-
-unsigned char LcCursorOff(void);
-// Post: Encola desactivacio del cursor. Retorna 1/0 segons disponibilitat.
 
 unsigned char LcGotoXY(char Column, char Row);
 // Pre:  Column 0..39, Row 0..3
 // Post: Encola moviment de cursor. Retorna 1/0 segons disponibilitat.
-
-unsigned char LcPutChar(char c);
-// Post: Encola escriure un caracter. Retorna 1/0 segons disponibilitat.
 
 unsigned char LcPutString(char *s);
 // Pre:  La cadena 's' ha de romandre valida fins que la pinti el motor.

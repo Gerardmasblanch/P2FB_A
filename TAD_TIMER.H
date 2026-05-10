@@ -31,11 +31,8 @@ void TI_ResetTics (unsigned char TimerHandle);
 	// Pre: Handle ha estat retornat per Ti_NewTimer.
 	// Post: Engega la temporitzaci� associada a 'TimerHandle', guardant la referencia temporal en el moment de la crida.
 
-unsigned long TI_GetTics (unsigned char TimerHandle);
+unsigned int TI_GetTics (unsigned char TimerHandle);
 	// Pre: Handle ha estat retornat per TI_NewGetTimer.
 	// Post: Retorna els tics transcorreguts des de la crida a TI_ResetTics per al mateix TimerHandle.
-
-void TI_End (void);
-	// Post: Destructor del TAD
 
 #endif

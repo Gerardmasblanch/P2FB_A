@@ -9,74 +9,41 @@
 #define MIDA_CUA 16
 #define MASK_CUA 0x0F
 
-static volatile char cuaTx[MIDA_CUA];
-static volatile unsigned char escriureTx;
-static volatile unsigned char llegirTx;
-static volatile unsigned char quantsTx;
-
 static volatile char cuaRx[MIDA_CUA];
 static volatile unsigned char escriureRx;
 static volatile unsigned char llegirRx;
 static volatile unsigned char quantsRx;
 
+static unsigned char estatRx;
+static unsigned char caracterRx;
+static unsigned char bitRx;
+static unsigned char ticsRx;
 static unsigned char estatTx;
 static unsigned char caracterTx;
 static unsigned char bitTx;
 static unsigned char ticsTx;
 
-static unsigned char estatRx;
-static unsigned char caracterRx;
-static unsigned char bitRx;
-static unsigned char ticsRx;
-
 static unsigned char timerSioFarm;
 static unsigned char quantsAux;
-static unsigned char enviatAux;
 static char caracterAux;
 
-static void MotorTx(void);
 static void MotorRx(void);
+static void MotorTx(void);
 
 void SIOFARM_Init(void) {
-    LATDbits.LATD1 = 1;    // deixa TX en repos alt
+    PIN_TX = 1;
     TRISDbits.TRISD1 = 0;  // com a output
-
     TRISDbits.TRISD0 = 1;  // com a input
-
-    escriureTx = 0;
-    llegirTx = 0;
-    quantsTx = 0;
 
     escriureRx = 0;
     llegirRx = 0;
     quantsRx = 0;
 
-    estatTx = 0;
     estatRx = 0;
+    estatTx = 0;
 
     TI_NewTimer(&timerSioFarm);
     TI_ResetTics(timerSioFarm);
-}
-
-unsigned char SIOFARM_EnviaCaracter(char caracter) {
-    enviatAux = 0;
-
-    di();
-
-    if(quantsTx >= MIDA_CUA) {
-        ei();
-        return 0;
-    }
-
-    cuaTx[escriureTx] = caracter;
-    escriureTx++;
-    escriureTx &= MASK_CUA;
-    quantsTx++;
-
-    ei();
-
-    enviatAux = 1;
-    return enviatAux;
 }
 
 unsigned char SIOFARM_HiHaCaracter(void) {
@@ -105,6 +72,18 @@ char SIOFARM_LlegeixCaracter(void) {
     return caracterAux;
 }
 
+unsigned char SIOFARM_EnviaCaracter(char caracter) {
+    if(estatTx != 0) return 0;
+
+    caracterTx = caracter;
+    bitTx = 0;
+    ticsTx = 2;
+    PIN_TX = 0;
+    estatTx = 1;
+
+    return 1;
+}
+
 void SIOFARM_Motor(void) {
     if(INTCONbits.GIE == 0) {  // evita avancar el motor si encara som dins una interrupcio
         return;
@@ -115,49 +94,37 @@ void SIOFARM_Motor(void) {
     }
 
     TI_ResetTics(timerSioFarm);
-    MotorTx();
     MotorRx();
+    MotorTx();
 }
 
 static void MotorTx(void) {
+    if(estatTx == 0) return;
+
+    ticsTx--;
+    if(ticsTx != 0) return;
+
+    ticsTx = 2;
+
     switch(estatTx) {
-        case 0: // TX repos
-
-            PIN_TX = 1;
-
-            if(quantsTx > 0) {
-                caracterTx = cuaTx[llegirTx];
-                llegirTx++;
-                llegirTx &= MASK_CUA;
-                quantsTx--;
-
-                PIN_TX = 0;     // start bit
-                bitTx = 0;
-                ticsTx = 2;
-                estatTx = 1;
+        case 1: // TX dades
+            if((caracterTx & (1 << bitTx)) != 0) {
+                PIN_TX = 1;
+            } else {
+                PIN_TX = 0;
             }
+
+            bitTx++;
+            if(bitTx >= 8) estatTx = 2;
             break;
 
-        case 1: // TX enviant
+        case 2: // TX stop
+            PIN_TX = 1;
+            estatTx = 3;
+            break;
 
-            ticsTx--;
-
-            if(ticsTx == 0) {
-                bitTx++;
-
-                if(bitTx <= 8) {
-                    PIN_TX = caracterTx & 0x01;
-                    caracterTx >>= 1;
-                } else if(bitTx == 9) {
-                    PIN_TX = 1;     // stop bit
-                } else {
-                    PIN_TX = 1;
-                    estatTx = 0;
-                    return;
-                }
-
-                ticsTx = 2;
-            }
+        case 3:
+            estatTx = 0;
             break;
     }
 }
@@ -235,5 +202,5 @@ static void MotorRx(void) {
  *
  * Els bits que arriben a 0 no es toquen, perque caracterRx ja comenca a 0.
  * Al final caracterRx conte el byte complet i es guarda a cuaRx.
- * En TX, bitTx = 9 es el stop bit, no una dada mes.
+ * El bit de stop es comprova al final i no es guarda com una dada mes.
  */

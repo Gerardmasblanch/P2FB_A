@@ -5,9 +5,9 @@
 
 void SIOFARM_Init(void);
 
-unsigned char SIOFARM_EnviaCaracter(char caracter);
 unsigned char SIOFARM_HiHaCaracter(void);
 char SIOFARM_LlegeixCaracter(void);
+unsigned char SIOFARM_EnviaCaracter(char caracter);
 
 void SIOFARM_Motor(void);
 

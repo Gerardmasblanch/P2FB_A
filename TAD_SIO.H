@@ -10,14 +10,12 @@
  */
 
 void SIO_Init(void);
-void SIO_End(void);
 
 unsigned char SIO_RXAvail(void);
 unsigned char SIO_GetChar(void);
 
 unsigned char SIO_TXAvail(void);
 void SIO_PutChar(unsigned char ElValor);
-void SIO_PutString(unsigned char *LaFrase);
 
 void SIO_InterrupcioRX(void);
 void SIO_InterrupcioTX(void);

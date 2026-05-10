@@ -15,6 +15,7 @@ static unsigned char direccioNova;
 static unsigned char botoAnterior;
 static unsigned char botoActual;
 static unsigned char estat;
+static unsigned char indexJoy;
 
 void JOY_Init(void) {
     TRISBbits.TRISB2 = 1;   // boto 
@@ -25,9 +26,14 @@ void JOY_Init(void) {
     botoAnterior = 0;
     botoActual = 0;
     estat = 0;
+    indexJoy = 0;
 }
 
 void JOY_Motor(void) {
+    const char *cadena;
+
+    cadena = 0;
+
     switch(estat) {
         case 0:
             direccioNova = 0;
@@ -45,8 +51,10 @@ void JOY_Motor(void) {
             }
 
             if(botoActual && !botoAnterior) {
+                indexJoy = 0;
                 estat = 5; // SELECT
             } else if(direccioActual == 0 && direccioNova != 0) {
+                indexJoy = 0;
                 estat = direccioNova;
             }
 
@@ -54,39 +62,33 @@ void JOY_Motor(void) {
             botoAnterior = botoActual; // guarda si estava premut per detectar nomes el flanc
             break;
 
-        case 1:  // comanda mes llarga --> MOVE_RIGHT\r\n 12 caracters
-            if(SIO_TXAvail() >= 12) {
-                SIO_PutString(C_UP);
-                estat = 0;
-            }
+        case 1:
+            cadena = C_UP;
             break;
 
-        case 2: 
-            if(SIO_TXAvail() >= 12) { 
-                SIO_PutString(C_DOWN);
-                estat = 0;
-            }
+        case 2:
+            cadena = C_DOWN;
             break;
 
-        case 3: 
-            if(SIO_TXAvail() >= 12) { 
-                SIO_PutString(C_LEFT);
-                estat = 0;
-            }
+        case 3:
+            cadena = C_LEFT;
             break;
 
-        case 4: 
-            if(SIO_TXAvail() >= 12) { 
-                SIO_PutString(C_RIGHT);
-                estat = 0;
-            }
+        case 4:
+            cadena = C_RIGHT;
             break;
 
         case 5:
-            if(SIO_TXAvail() >= 12) { 
-                SIO_PutString(C_SELECT);
-                estat = 0;
-            }
+            cadena = C_SELECT;
             break;
+    }
+
+    if(cadena != 0) {
+        if(cadena[indexJoy] == 0) {
+            estat = 0;
+        } else if(SIO_TXAvail() != 0) {
+            SIO_PutChar(cadena[indexJoy]);
+            indexJoy++;
+        }
     }
 }

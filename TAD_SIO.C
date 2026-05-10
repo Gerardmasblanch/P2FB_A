@@ -14,8 +14,8 @@
 #define MAX_RX 32
 #define MASK_RX 0x1F
 
-#define MAX_TX 32
-#define MASK_TX 0x1F
+#define MAX_TX 16
+#define MASK_TX 0x0F
 
 static unsigned char CuaRX[MAX_RX];
 static unsigned char IniciRX;
@@ -117,18 +117,4 @@ void SIO_PutChar(unsigned char ElValor) {
         ei();
         PIE1bits.TXIE = 1;
     }
-}
-
-void SIO_PutString(unsigned char *LaFrase) {
-    unsigned char Index;
-
-    Index = 0;
-
-    while(LaFrase[Index] != 0x00) {
-        SIO_PutChar(LaFrase[Index]);
-        Index++;
-    }
-}
-
-void SIO_End(void) {
 }
