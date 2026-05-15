@@ -1,3 +1,22 @@
+//
+// ADT for manipulating the alphanumeric display of the 
+// HD44780 controller using only 4 data bits.
+// This is the controller that almost all displays have integrated. 
+// The maximum size is 4 rows and 40 columns.
+//
+// F. Escudero vCli v1.0 Piera, January of 2004
+//
+// I have tested this ADT with a 2x16 LCD. If you observe any error please 
+// report it to sisco@salleurl.edu.
+//
+// Vcli V1.1, Sisco, at 26th of November of 2004. I have seen that with some LCDs 
+// we must first wait 2ms and then activate a Clear, independently of what Busy says.
+//
+// VCli V1.3, jnavarro, a 2013. I have extended the initialization time (now it takes 
+// 150 ms. but it is initialized at the first attempt. More info here: 
+// http://web.alfredstate.edu/weimandn/lcd/lcd_initialization/lcd_initialization_index.html
+// Still observing the same alteration with Busy, except with the timeout.
+
 #include <xc.h>
 #include "TAD_TIMER.H"
 #include "TAD_LCD.H"
@@ -6,30 +25,14 @@
 //
 //--------------------------------CONSTANTS---AREA-----------
 //
-#define FUNCTION_SET    0x20
-#define BITS_8          0x10
-#define DISPLAY_CONTROL 0x08
-#define DISPLAY_ON      0x04
-#define CURSOR_ON       0x02
-#define DISPLAY_CLEAR   0x01
-#define ENTRY_MODE      0x04
-#define SET_DDRAM       0x80
-
-// Estats del motor
-#define LCD_IDLE            0
-#define LCD_BUSY_SETUP      1   // Prepara lectura del flag Busy (configura pins, reset timer)
-#define LCD_BUSY_POLLING    2   // Comprova flag Busy cada tic; quan Busy=0 salta a LcdOp
-#define LCD_OP_CLEAR_ENVIA  3   // Envia DISPLAY_CLEAR i arma el timer d'espera
-#define LCD_OP_CLEAR_ESPERA 4   // Espera >= 4 tics (1.648ms > 1.52ms max del LCD)
-#define LCD_OP_GOTOXY       7   // Envia SET_DDRAM amb l'adreca calculada
-#define LCD_OP_PUTSTRING    10  // Envia el seguent caracter de la cadena
-
-// Tipus d'ordre encolada (cua de 3 ordres pendents)
-#define LCD_ORDRE_CLEAR       0
-#define LCD_ORDRE_GOTOXY      3
-#define LCD_ORDRE_PUTSTRING   5
-
-#define MAX_ORDRES 3
+#define FUNCTION_SET	0x20
+#define BITS_8			0x10
+#define DISPLAY_CONTROL	0x08
+#define DISPLAY_ON		0x04
+#define CURSOR_ON		0x02
+#define DISPLAY_CLEAR	0x01
+#define ENTRY_MODE		0x04
+#define SET_DDRAM		0x80
 //
 //---------------------------End--CONSTANTS---AREA-----------
 //
@@ -38,302 +41,252 @@
 //
 //--------------------------------VARIABLES---AREA-----------
 //
-typedef struct {
-    unsigned char op;
-    unsigned char arg1;     // caracter (PutChar) o columna (GotoXY)
-    unsigned char arg2;     // fila (GotoXY)
-    char         *str;      // cadena (PutString)
-} OrdreLCD;
-
-static OrdreLCD      CuaOrdres[MAX_ORDRES];
-static unsigned char IniciCua;       // index on s'escriu la propera ordre
-static unsigned char FiCua;          // index de la propera ordre a executar
-static unsigned char QuantsOrdres;
-
+static unsigned char Rows, Columns;
+static unsigned char RowAct, ColumnAct;
 static unsigned char Timer;
-static unsigned char LcdEstat;
-static unsigned char LcdOp;          // Estat al qual saltar despres del busy-check
-static unsigned char LcdCharPendent; // Parametre per PutChar i columna per GotoXY
-static unsigned char LcdRowPendent;  // Parametre fila per GotoXY
-static char         *LcdStringPendent;
+static char *StringPendent;
 //
 //---------------------------End--VARIABLES---AREA-----------
 //
 
+//
+//--------------------------------PROTOTIPE--AREA-----------
+//
+void Espera(unsigned char Timer, int ms);
+void CantaIR(char IR);
+void CantaData(char Data);
+void WaitForBusy(void);
+void EscriuPrimeraOrdre(char);
 
 //
-//--------------------------------PROTOTIPS--AREA-----------
-//
-static unsigned char EncolaOrdre(unsigned char op, unsigned char a1, unsigned char a2, char *s);
-static void Espera(unsigned int ms);
-static void CantaPartAlta(char c);
-static void CantaPartBaixa(char c);
-static void CantaIR(char IR);
-static void CantaData(char Data);
-static void WaitForBusy(void);
-static void EscriuPrimeraOrdre(char ordre);
-static void AplicaGotoXY(unsigned char col, unsigned char row);
-//
-//---------------------------End--PROTOTIPS--AREA-----------
+//---------------------------End--PROTOTIYPE--AREA-----------
 //
 
 
 //
 //--------------------------------PUBLIQUES---AREA-----------
 //
+void LcInit(char rows, char columns) {
+// Pre: Rows = {1, 2, 4}  Columns = {8, 16, 20, 24, 32, 40 }
+// Pre: It needs 40ms of tranquility between VCC raising until this constructor is called.
+// Pre: There is a free timer
+// Post: This routine can last until 100ms
+// Post: The display remains cleared, the cursor is turned OFF and at the position (0, 0).
+	int i;
+	TI_NewTimer(&Timer); 
+	Rows = rows; Columns = columns;
+	RowAct = ColumnAct = 0;
+        StringPendent = 0;
+	SetControlsSortida();
+	for (i = 0; i < 2; i++) {
+		Espera(Timer, 100);
+		// This sequence is set by the manual.
+
+		EscriuPrimeraOrdre(CURSOR_ON | DISPLAY_CLEAR);
+		Espera(Timer, 5);
+		EscriuPrimeraOrdre(CURSOR_ON | DISPLAY_CLEAR);
+		Espera(Timer, 1);
+		EscriuPrimeraOrdre(CURSOR_ON | DISPLAY_CLEAR);
+		Espera(Timer, 1);
+		// .. three times. 
+		// Now one at 4 bits
+		EscriuPrimeraOrdre(CURSOR_ON);
+		Espera(Timer, 1);
+		CantaIR(FUNCTION_SET | DISPLAY_CONTROL); 	// 4bits, 1 row, font 5x7
+		// The first line is erased here 
+		// Now we can wait for busy
+		WaitForBusy(); 	CantaIR(DISPLAY_CONTROL);  	// Display Off
+		WaitForBusy(); 	CantaIR(DISPLAY_CLEAR);	   	// All spaces
+		Espera(Timer,3); // 1.64ms V1.1
+		WaitForBusy(); 	CantaIR(DISPLAY_ON | CURSOR_ON); // Auto Increment and shift
+		WaitForBusy(); 	CantaIR(DISPLAY_CONTROL | DISPLAY_ON); 		// Display On
+	}
+	//The manual says that it should work but it doesn't initialize 
+    //correctly after 40ms. Therefore, there is a loop with two initializations 
+    //from here the initialization works correctly if a reset is made or if
+    //the supply is turned ON and OFF. 
+}
+
+void LcClear(void) {
+// Post: Erases the display and sets the cursor to its previous state. 
+// Post: The next order can last up to 1.6ms. 
+	WaitForBusy(); 	CantaIR(DISPLAY_CLEAR);	   //Spaces
+	Espera(Timer, 3); // V1.1
+}
+
+void LcGotoXY(char Column, char Row) {
+// Pre : Column between 0 and 39, row between 0 and 3. 
+// Post: Sets the cursor to those coordinates. 
+// Post: The next order can last until 40us.
+	int Fisics;
+	// calculating the effective address of the LCD ram. 
+	switch (Rows) {
+		case 2:
+			Fisics = Column + (!Row ? 0 : 0x40); break;
+		case 4:
+			Fisics = Column;
+			if (Row == 1) Fisics += 0x40; else
+			if (Row == 2) Fisics += Columns;      /* 0x14; */ else
+			if (Row == 3) Fisics += 0x40+Columns; /* 0x54; */
+			break;
+		case 1:
+		default:
+			Fisics = Column; break;
+	}
+	// applying the command
+	WaitForBusy();
+	CantaIR((char)(SET_DDRAM | Fisics));
+	// Finally, I refresh the local images.
+	RowAct    = Row;
+	ColumnAct = Column;
+}
+
+void LcPutChar(char c) {
+// Post: Paints the char in the actual cursor position and increments 
+// its position. If the column gets to 39 it returns to 0.
+// The row of the LCD is increased when this happens until the second
+// row and then it is reset back to row 0 if it has 2 rows total. 
+// If the LCD has 4 rows it will reset back to row 0 when it
+// reaches row 4 and the columns will go till 39 before reseting to 0.
+// The one row LCDs returns to 0 when a column gets to 39. 
+// The row is never increased. 
+	// The char is written
+	WaitForBusy(); CantaData(c);
+	// The cursor position is recalculated.
+	++ColumnAct;
+	if (Rows == 3) {
+		if (ColumnAct >= 20) {
+			ColumnAct = 0;
+			if (++RowAct >= 4) RowAct = 0;
+			LcGotoXY(ColumnAct, RowAct);
+		}
+	} else
+	if (Rows == 2) {
+		if (ColumnAct >= 40) {
+			ColumnAct = 0;
+			if (++RowAct >= 2) RowAct = 0;
+			LcGotoXY(ColumnAct, RowAct);
+		}
+	} else
+	if (RowAct == 1) {
+		if (ColumnAct >= 40) ColumnAct = 0;
+		LcGotoXY(ColumnAct, RowAct);
+	}
+}
+
+
+void LcPutString(char *s) {
+// Post: Paints the string from the actual cursor position. 
+// The coordinate criteria is the same as the LcPutChar. 
+// Post: Can last up to 40us for each char of a routine output.
+        if(StringPendent == 0) StringPendent = s;
+}
 
 void LcMotor(void) {
-    char Busy;
-    OrdreLCD *prox;
-
-    switch (LcdEstat) {
-
-        case LCD_IDLE:
-            if (QuantsOrdres == 0) break;
-
-            // Treu la propera ordre i copia els args a les variables de treball.
-            prox = &CuaOrdres[FiCua];
-            switch (prox->op) {
-                case LCD_ORDRE_CLEAR:
-                    LcdOp = LCD_OP_CLEAR_ENVIA;
-                    break;
-                case LCD_ORDRE_GOTOXY:
-                    LcdCharPendent = prox->arg1;
-                    LcdRowPendent  = prox->arg2;
-                    LcdOp = LCD_OP_GOTOXY;
-                    break;
-                case LCD_ORDRE_PUTSTRING:
-                    LcdStringPendent = prox->str;
-                    LcdOp = LCD_OP_PUTSTRING;
-                    break;
-            }
-            FiCua++;
-            if(FiCua >= MAX_ORDRES) FiCua = 0;
-            QuantsOrdres--;
-            LcdEstat = LCD_BUSY_SETUP;
-            break;
-
-        // --- Gestio del flag Busy ---
-
-        case LCD_BUSY_SETUP:
-            SetD4_D7Entrada();
-            RSDown();
-            RWUp();
+// Sends one pending char each time, making LcPutString cooperative.
+        if(StringPendent == 0) return;
+        if(TI_GetTics(Timer) < 2) return;
+        if(*StringPendent == 0) {
+            StringPendent = 0;
+        } else {
+            LcPutChar(*StringPendent);
+            StringPendent++;
             TI_ResetTics(Timer);
-            LcdEstat = LCD_BUSY_POLLING;
-            break;
-
-        case LCD_BUSY_POLLING:
-            EnableUp();
-            EnableUp();          // Pols Enable part alta (nibble address counter)
-            Busy = GetBusyFlag();
-            EnableDown();
-            EnableDown();
-            EnableUp();
-            EnableUp();          // Pols Enable part baixa (descartem)
-            EnableDown();
-            EnableDown();
-            if (TI_GetTics(Timer)) {          // Timeout > 1ms: LCD bloquejat, continuem igualment
-                LcdEstat = LcdOp;
-                break;
-            }
-            if (!Busy) {
-                LcdEstat = LcdOp;
-            }
-            break;
-
-        // --- Operacions ---
-
-        case LCD_OP_CLEAR_ENVIA:
-            CantaIR(DISPLAY_CLEAR);
-            TI_ResetTics(Timer);
-            LcdEstat = LCD_OP_CLEAR_ESPERA;
-            break;
-
-        case LCD_OP_CLEAR_ESPERA:
-            // El busy flag no es fiable despres de Clear (V1.1); esperem per timer.
-            // 4 tics x 412us = 1.648ms > 1.52ms temps maxim de Clear del HD44780.
-            if (TI_GetTics(Timer) >= 4) {
-                LcdEstat = LCD_IDLE;
-            }
-            break;
-
-        case LCD_OP_GOTOXY:
-            AplicaGotoXY(LcdCharPendent, LcdRowPendent);
-            LcdEstat = LCD_IDLE;
-            break;
-
-        case LCD_OP_PUTSTRING:
-            if (TI_GetTics(Timer) == 0) break;
-            if (*LcdStringPendent) {
-                LcdCharPendent = *LcdStringPendent++;
-                CantaData(LcdCharPendent);
-                TI_ResetTics(Timer);
-            } else {
-                LcdEstat = LCD_IDLE;
-            }
-            break;
-    }
-}
-
-void LcInit(char rows, char columns) {
-// BLOQUEJANT: es crida una sola vegada abans d'arrencar el bucle principal.
-// El flag Busy no es fiable durant la sequencia d'inicialitzacio del HD44780,
-// per tant s'utilitzen Espera() i EscriuPrimeraOrdre() com marca el datasheet.
-    TI_NewTimer(&Timer);
-    LcdEstat = LCD_IDLE;
-    IniciCua = FiCua = QuantsOrdres = 0;
-    SetControlsSortida();
-    RSDown();
-    RWDown();
-    EnableDown();
-
-    Espera(100);                                                        // >= 41.2ms
-    EscriuPrimeraOrdre(CURSOR_ON | DISPLAY_CLEAR);
-    Espera(5);                                                          // >= 2.06ms
-    EscriuPrimeraOrdre(CURSOR_ON | DISPLAY_CLEAR);
-    Espera(1);                                                          // >= 412us
-    EscriuPrimeraOrdre(CURSOR_ON | DISPLAY_CLEAR);
-    Espera(1);                                                          // >= 412us
-    EscriuPrimeraOrdre(CURSOR_ON);                                      // Commuta a 4 bits
-    Espera(1);
-    CantaIR(FUNCTION_SET | DISPLAY_CONTROL);                            // 4 bits, 1 fila
-    WaitForBusy(); CantaIR(DISPLAY_CONTROL);                            // Display Off
-    WaitForBusy(); CantaIR(DISPLAY_CLEAR);                              // Esborrar
-    Espera(4);                                                          // >= 1.648ms (V1.1)
-    WaitForBusy(); CantaIR(DISPLAY_ON | CURSOR_ON);                     // Entry mode
-    WaitForBusy(); CantaIR(DISPLAY_CONTROL | DISPLAY_ON);               // Display On sense cursor
-}
-
-unsigned char LcClear(void) {
-    return EncolaOrdre(LCD_ORDRE_CLEAR, 0, 0, 0);
-}
-
-unsigned char LcGotoXY(char Column, char Row) {
-    return EncolaOrdre(LCD_ORDRE_GOTOXY, Column, Row, 0);
-}
-
-unsigned char LcPutString(char *s) {
-    return EncolaOrdre(LCD_ORDRE_PUTSTRING, 0, 0, s);
+        }
 }
 
 unsigned char LcIsBusy(void) {
-    return (LcdEstat != LCD_IDLE) || (QuantsOrdres > 0);
+        return StringPendent != 0;
 }
-//
-//---------------------------End--PUBLIQUES---AREA-----------
-//
-
 
 //
-//--------------------------------PRIVADES----AREA-----------
+//---------------------------End--PUBLIC---AREA-----------
 //
 
-static unsigned char EncolaOrdre(unsigned char op, unsigned char a1, unsigned char a2, char *s) {
-    if (QuantsOrdres >= MAX_ORDRES) return 0;
-    CuaOrdres[IniciCua].op   = op;
-    CuaOrdres[IniciCua].arg1 = a1;
-    CuaOrdres[IniciCua].arg2 = a2;
-    CuaOrdres[IniciCua].str  = s;
-    IniciCua++;
-    if(IniciCua >= MAX_ORDRES) IniciCua = 0;
-    QuantsOrdres++;
-    return 1;
-}
-
-static void Espera(unsigned int ms) {
-    TI_ResetTics(Timer);
-    while(TI_GetTics(Timer) < ms);
-}
-
-static void CantaPartAlta(char c) {
-    SetD7(c & 0x80 ? 1 : 0);
-    SetD6(c & 0x40 ? 1 : 0);
-    SetD5(c & 0x20 ? 1 : 0);
-    SetD4(c & 0x10 ? 1 : 0);
-}
-
-static void CantaPartBaixa(char c) {
-    SetD7(c & 0x08 ? 1 : 0);
-    SetD6(c & 0x04 ? 1 : 0);
-    SetD5(c & 0x02 ? 1 : 0);
-    SetD4(c & 0x01 ? 1 : 0);
-}
-
-static void CantaIR(char IR) {
-    SetD4_D7Sortida();
-    RSDown();
-    RWDown();
-    EnableUp();
-    CantaPartAlta(IR);
-    EnableUp();
-    EnableDown();
-    EnableDown();
-    EnableUp();
-    CantaPartBaixa(IR);
-    EnableUp();
-    EnableDown();
-    EnableDown();
-    SetD4_D7Entrada();
-}
-
-static void CantaData(char Data) {
-    SetD4_D7Sortida();
-    RSUp();
-    RWDown();
-    EnableUp();
-    CantaPartAlta(Data);
-    EnableUp();
-    EnableDown();
-    EnableDown();
-    EnableUp();
-    CantaPartBaixa(Data);
-    EnableUp();
-    EnableDown();
-    EnableDown();
-    SetD4_D7Entrada();
-}
-
-static void WaitForBusy(void) {
-    char Busy;
-    SetD4_D7Entrada();
-    RSDown();
-    RWUp();
-    TI_ResetTics(Timer);
-    EnableUp(); EnableUp();
-    Busy = GetBusyFlag();
-    EnableDown(); EnableDown();
-    EnableUp(); EnableUp();
-    EnableDown(); EnableDown();
-    while(Busy && !TI_GetTics(Timer)) {
-        EnableUp(); EnableUp();
-        Busy = GetBusyFlag();
-        EnableDown(); EnableDown();
-        EnableUp(); EnableUp();
-        EnableDown(); EnableDown();
-    }
-}
-
-static void EscriuPrimeraOrdre(char ordre) {
-    // Envia la primera ordre com si fossin 8 bits (fase d'inicialitzacio).
-    SetD4_D7Sortida(); RSDown(); RWDown();
-    EnableUp(); EnableUp();
-    SetD7(ordre & 0x08 ? 1 : 0);
-    SetD6(ordre & 0x04 ? 1 : 0);
-    SetD5(ordre & 0x02 ? 1 : 0);
-    SetD4(ordre & 0x01 ? 1 : 0);
-    EnableDown();
-}
-
-static void AplicaGotoXY(unsigned char col, unsigned char row) {
-    unsigned char Fisics;
-
-    Fisics = col;
-    if(row != 0) Fisics += 0x40;
-
-    CantaIR(SET_DDRAM | Fisics);
-    TI_ResetTics(Timer);
-}
 //
-//---------------------------End--PRIVADES----AREA-----------
+//--------------------------------PRIVATE----AREA-----------
+//
+
+void Espera(unsigned char Timer, int ms) {
+	TI_ResetTics(Timer);
+	while(TI_GetTics(Timer) < ms);
+}
+
+void CantaPartAlta(char c) {
+	 SetD7(c & 0x80 ? 1 : 0);
+	 SetD6(c & 0x40 ? 1 : 0);
+	 SetD5(c & 0x20 ? 1 : 0);
+	 SetD4(c & 0x10 ? 1 : 0);
+}
+
+void CantaPartBaixa(char c) {
+	 SetD7(c & 0x08 ? 1 : 0);
+	 SetD6(c & 0x04 ? 1 : 0);
+	 SetD5(c & 0x02 ? 1 : 0);
+	 SetD4(c & 0x01 ? 1 : 0);
+}
+
+void CantaIR(char IR) {
+	SetD4_D7Sortida();
+	RSDown();
+	RWDown();
+	EnableUp();
+	CantaPartAlta(IR); 		// Data Setup = 80ns
+	EnableUp();				// Making sure the pulse lasts 500ns
+	EnableDown();   		// The pulse width "enable" is higher than 230ns
+	EnableDown();
+	EnableUp();
+	CantaPartBaixa(IR); 	// Data Setup = 80ns
+	EnableUp();				// Making sure the pulse lasts 500ns
+	EnableDown();   		// The pulse width "enable" is higher than 230ns
+	SetD4_D7Entrada();
+}
+
+void CantaData(char Data) {
+	SetD4_D7Sortida();
+	RSUp();
+	RWDown();
+	EnableUp();
+	CantaPartAlta(Data); 	// Data Setup = 80ns
+	EnableUp();				// Making sure the pulse lasts 500ns
+	EnableDown();   		// The pulse width "enable" is higher than 230ns
+	EnableDown();
+	EnableUp();
+	CantaPartBaixa(Data); 	// Data Setup = 80ns
+	EnableUp();				// Making sure the pulse lasts 500ns
+	EnableDown();   		// The pulse width "enable" is higher than 230ns
+	SetD4_D7Entrada();
+}
+
+void WaitForBusy(void) { char Busy;
+	SetD4_D7Entrada();
+	RSDown();
+	RWUp();
+	TI_ResetTics(Timer);
+	do {
+		EnableUp();EnableUp(); //Making sure the 500ns of the pulse time
+		Busy = GetBusyFlag();
+		EnableDown();
+		EnableDown();
+		EnableUp();EnableUp();
+		// The lower part of the address counter, it is not interesting for us. 
+		EnableDown();
+		EnableDown();
+		if (TI_GetTics(Timer)) break; // More than one ms means that the LCD has gone mad.
+	} while(Busy);
+}
+
+void EscriuPrimeraOrdre(char ordre) {
+	// Write the first as if there are 8 bits.
+	SetD4_D7Sortida();  RSDown(); RWDown();
+	EnableUp(); EnableUp();
+	 SetD7(ordre & 0x08 ? 1 : 0);
+	 SetD6(ordre & 0x04 ? 1 : 0);
+	 SetD5(ordre & 0x02 ? 1 : 0);
+	 SetD4(ordre & 0x01 ? 1 : 0);
+	EnableDown();
+}
+
+//
+//---------------------------End--PRIVATE----AREA-----------
 //

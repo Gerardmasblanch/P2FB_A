@@ -18,7 +18,7 @@ static unsigned char estatRx;
 static unsigned char caracterRx;
 static unsigned char bitRx;
 static unsigned char ticsRx;
-static unsigned char estatTx;
+unsigned char estatTxSioFarm;
 static unsigned char caracterTx;
 static unsigned char bitTx;
 static unsigned char ticsTx;
@@ -40,7 +40,7 @@ void SIOFARM_Init(void) {
     quantsRx = 0;
 
     estatRx = 0;
-    estatTx = 0;
+    estatTxSioFarm = 0;
 
     TI_NewTimer(&timerSioFarm);
     TI_ResetTics(timerSioFarm);
@@ -73,13 +73,13 @@ char SIOFARM_LlegeixCaracter(void) {
 }
 
 unsigned char SIOFARM_EnviaCaracter(char caracter) {
-    if(estatTx != 0) return 0;
+    if(estatTxSioFarm != 0) return 0;
 
     caracterTx = caracter;
     bitTx = 0;
     ticsTx = 2;
     PIN_TX = 0;
-    estatTx = 1;
+    estatTxSioFarm = 1;
 
     return 1;
 }
@@ -99,14 +99,14 @@ void SIOFARM_Motor(void) {
 }
 
 static void MotorTx(void) {
-    if(estatTx == 0) return;
+    if(estatTxSioFarm == 0) return;
 
     ticsTx--;
     if(ticsTx != 0) return;
 
     ticsTx = 2;
 
-    switch(estatTx) {
+    switch(estatTxSioFarm) {
         case 1: // TX dades
             if((caracterTx & (1 << bitTx)) != 0) {
                 PIN_TX = 1;
@@ -115,16 +115,16 @@ static void MotorTx(void) {
             }
 
             bitTx++;
-            if(bitTx >= 8) estatTx = 2;
+            if(bitTx >= 8) estatTxSioFarm = 2;
             break;
 
         case 2: // TX stop
             PIN_TX = 1;
-            estatTx = 3;
+            estatTxSioFarm = 3;
             break;
 
         case 3:
-            estatTx = 0;
+            estatTxSioFarm = 0;
             break;
     }
 }

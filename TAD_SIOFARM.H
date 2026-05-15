@@ -3,6 +3,9 @@
 
 #define MIDA_CUA_SIOFARM 16
 
+extern unsigned char estatTxSioFarm;
+#define SIOFARM_TxLliure() (estatTxSioFarm == 0)
+
 void SIOFARM_Init(void);
 
 unsigned char SIOFARM_HiHaCaracter(void);

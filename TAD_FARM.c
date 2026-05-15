@@ -19,6 +19,8 @@
 #define LONG_DATA 14
 #define LONG_JAVA 48
 #define MAX_ANIMALS 24
+#define MAX_ANIMALS_ESPECIE 15
+#define MIN_ANIMALS_ESPECIE 3
 #define NUM_ESPECIES 4
 #define MIDA_AVIS 4
 
@@ -50,8 +52,8 @@
 #define TXT_CAVALL "Cavall: "
 #define TXT_GALLINA "Gallina: "
 #define TXT_BACKSPACE "\b \b"
-#define TXT_DATA_OK "\r\nDate and time correct\r\n"
-#define TXT_DATA_ERROR "\r\nPlease input a correct date\r\n"
+#define TXT_DATA_OK "\n\rDate and time correct\n\r"
+#define TXT_DATA_ERROR "\n\rPlease input a correct date\n\r"
 #define TXT_TIPUS_VACA "VACA"
 #define TXT_TIPUS_PORC "PORC"
 #define TXT_TIPUS_CAVALL "CAVALL"
@@ -97,6 +99,7 @@ static unsigned char cuaAvisInfo[MIDA_AVIS];
 static unsigned char quantsAvis;
 static unsigned char rebellio;
 static unsigned char resetPas;
+static unsigned char ledBaixant;
 
 static unsigned char dia, mes, hora, minut, segon;
 
@@ -395,8 +398,10 @@ static void MotorMissatgeData(void) {
     }
 
     if(text[idxMissatgeData] == 0) {
-        missatgeData = 0;
-        idxMissatgeData = 0;
+        if(SIOFARM_TxLliure()) {
+            missatgeData = 0;
+            idxMissatgeData = 0;
+        }
         return;
     }
 
@@ -492,6 +497,8 @@ static void MotorAvisLcd(void) {
 
 static void AfegeixAnimal(unsigned char tipus) {
     if(totalAnimals >= MAX_ANIMALS) return;
+    if(quantsEspecie[tipus] >= MAX_ANIMALS_ESPECIE) return;
+    if(totalAnimals >= MAX_ANIMALS_ESPECIE && quantsEspecie[tipus] >= MIN_ANIMALS_ESPECIE) return;
 
     tipusAnimal[totalAnimals] = tipus;
     if(quantsEspecie[tipus] == 0) comptProducte[tipus] = 0;
@@ -627,7 +634,29 @@ static void ResetGranja(void) {
     comptProducte[0] = comptProducte[1] = comptProducte[2] = comptProducte[3] = 0;
     rebellio = 0;
     LATAbits.LATA4 = 0;
+    hiHaAvisLcd = 0;
+    quantsAvis = 0;
+    estatAvis = 0;
+    nomLCD[0] = 0;
+    dataLCD[0] = 0;
     resetPas = 1;
+}
+
+static void ActualitzaLed(unsigned int ticsFarm) {
+    unsigned char intensitat;
+
+    if(rebellio || estat != ESTAT_FUNCIONAMENT || ticsFarm >= TICS_SEGON) {
+        LATAbits.LATA4 = 0;
+        return;
+    }
+
+    if(!ledBaixant) {
+        intensitat = (unsigned char)(ticsFarm >> 7);
+    } else {
+        intensitat = (unsigned char)((TICS_SEGON - ticsFarm) >> 7);
+    }
+
+    LATAbits.LATA4 = (((unsigned char)ticsFarm & 0x0F) < intensitat) ? 1 : 0;
 }
 
 static void ProcessaConsum(void) {
@@ -819,6 +848,7 @@ static void LlegeixJava(void) {
 static void LlegeixDataTerminal(unsigned char inicial) {
     char c;
 
+    if(!SIOFARM_TxLliure()) return;
     if(!SIOFARM_HiHaCaracter()) return;
 
     c = SIOFARM_LlegeixCaracter();
@@ -880,6 +910,7 @@ void FARM_Init(void) {
     nomLCD[0] = 0;
     rebellio = 0;
     resetPas = 0;
+    ledBaixant = 0;
     idxRevisaSon = 0;
     revisaSon = 0;
     estatAvis = 0;
@@ -903,14 +934,11 @@ void FARM_Motor(void) {
     unsigned int ticsFarm;
 
     ticsFarm = TI_GetTics(timerFarm);
-    if(!rebellio && estat == ESTAT_FUNCIONAMENT && ticsFarm < 60) {
-        LATAbits.LATA4 = 1;
-    } else {
-        LATAbits.LATA4 = 0;
-    }
+    ActualitzaLed(ticsFarm);
 
     if(ticsFarm >= TICS_SEGON) {
         TI_ResetTics(timerFarm);
+        ledBaixant = !ledBaixant;
         if(estat == ESTAT_FUNCIONAMENT) NouSegon();
     }
 
@@ -924,6 +952,7 @@ void FARM_Motor(void) {
 
     MotorAvisLcd();
     MotorMissatgeData();
+    if(missatgeData != 0) return;
     if(estatAvis != 0) return;
 
     if(revisaSon) {
