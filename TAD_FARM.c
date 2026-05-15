@@ -100,6 +100,7 @@ static unsigned char quantsAvis;
 static unsigned char rebellio;
 static unsigned char resetPas;
 static unsigned char ledBaixant;
+static unsigned char pendentsMinim;
 
 static unsigned char dia, mes, hora, minut, segon;
 
@@ -179,6 +180,7 @@ static void CarregaEeprom(void) {
     unsigned char tipus;
 
     totalAnimals = 0;
+    pendentsMinim = NUM_ESPECIES * MIN_ANIMALS_ESPECIE;
     quantsEspecie[0] = quantsEspecie[1] = quantsEspecie[2] = quantsEspecie[3] = 0;
     despertsEspecie[0] = despertsEspecie[1] = despertsEspecie[2] = despertsEspecie[3] = 0;
     productes[0] = productes[1] = productes[2] = productes[3] = 0;
@@ -199,6 +201,7 @@ static void CarregaEeprom(void) {
 
         tipusAnimal[i] = tipus;
         tempsDespert[i] = 0;
+        if(quantsEspecie[tipus] < MIN_ANIMALS_ESPECIE) pendentsMinim--;
         quantsEspecie[tipus]++;
         if(sonAnimal[i] == AWAKE) despertsEspecie[tipus]++;
 
@@ -498,10 +501,11 @@ static void MotorAvisLcd(void) {
 static void AfegeixAnimal(unsigned char tipus) {
     if(totalAnimals >= MAX_ANIMALS) return;
     if(quantsEspecie[tipus] >= MAX_ANIMALS_ESPECIE) return;
-    if(totalAnimals >= MAX_ANIMALS_ESPECIE && quantsEspecie[tipus] >= MIN_ANIMALS_ESPECIE) return;
+    if(quantsEspecie[tipus] >= MIN_ANIMALS_ESPECIE && (MAX_ANIMALS - totalAnimals) <= pendentsMinim) return;
 
     tipusAnimal[totalAnimals] = tipus;
     if(quantsEspecie[tipus] == 0) comptProducte[tipus] = 0;
+    if(quantsEspecie[tipus] < MIN_ANIMALS_ESPECIE) pendentsMinim--;
     quantsEspecie[tipus]++;
     numAnimal[totalAnimals] = quantsEspecie[tipus];
     sonAnimal[totalAnimals] = AWAKE;
@@ -625,6 +629,7 @@ static void NouSegon(void) {
 
 static void ResetGranja(void) {
     totalAnimals = 0;
+    pendentsMinim = NUM_ESPECIES * MIN_ANIMALS_ESPECIE;
     enviantAnimals = 0;
     idxAnimalEnviar = 0;
     quantsEspecie[0] = quantsEspecie[1] = quantsEspecie[2] = quantsEspecie[3] = 0;
@@ -911,6 +916,7 @@ void FARM_Init(void) {
     rebellio = 0;
     resetPas = 0;
     ledBaixant = 0;
+    pendentsMinim = NUM_ESPECIES * MIN_ANIMALS_ESPECIE;
     idxRevisaSon = 0;
     revisaSon = 0;
     estatAvis = 0;

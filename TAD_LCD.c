@@ -42,7 +42,6 @@
 //--------------------------------VARIABLES---AREA-----------
 //
 static unsigned char Rows, Columns;
-static unsigned char RowAct, ColumnAct;
 static unsigned char Timer;
 static char *StringPendent;
 //
@@ -75,7 +74,6 @@ void LcInit(char rows, char columns) {
 	int i;
 	TI_NewTimer(&Timer); 
 	Rows = rows; Columns = columns;
-	RowAct = ColumnAct = 0;
         StringPendent = 0;
 	SetControlsSortida();
 	for (i = 0; i < 2; i++) {
@@ -136,9 +134,6 @@ void LcGotoXY(char Column, char Row) {
 	// applying the command
 	WaitForBusy();
 	CantaIR((char)(SET_DDRAM | Fisics));
-	// Finally, I refresh the local images.
-	RowAct    = Row;
-	ColumnAct = Column;
 }
 
 void LcPutChar(char c) {
@@ -152,26 +147,6 @@ void LcPutChar(char c) {
 // The row is never increased. 
 	// The char is written
 	WaitForBusy(); CantaData(c);
-	// The cursor position is recalculated.
-	++ColumnAct;
-	if (Rows == 3) {
-		if (ColumnAct >= 20) {
-			ColumnAct = 0;
-			if (++RowAct >= 4) RowAct = 0;
-			LcGotoXY(ColumnAct, RowAct);
-		}
-	} else
-	if (Rows == 2) {
-		if (ColumnAct >= 40) {
-			ColumnAct = 0;
-			if (++RowAct >= 2) RowAct = 0;
-			LcGotoXY(ColumnAct, RowAct);
-		}
-	} else
-	if (RowAct == 1) {
-		if (ColumnAct >= 40) ColumnAct = 0;
-		LcGotoXY(ColumnAct, RowAct);
-	}
 }
 
 
