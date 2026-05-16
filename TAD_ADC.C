@@ -9,8 +9,6 @@ static unsigned char estat;
 static unsigned char timerAdc;
 
 void AD_Init(void) {
-    ADCON0 = 0x00;
-
     ADCON1 = 0x0C;       // AN0, AN1 i AN2 analogics
     ADCON2 = 0b00010110; // justificacio a lesquerra, 4 Tad, Fosc/64
     CMCON = 0x07;        // comparadors desactivats
@@ -33,25 +31,15 @@ void AD_Init(void) {
 }
 
 unsigned char AD_GetMostra(unsigned char index) {
-    if(index >= 3) {
-        return 0;
-    }
-
     return mostres[index];
 }
 
 void AD_Motor(void) {
-    unsigned char canal;
-
     switch(estat)
     {
         case 0: // canvi de canal
 
-            canal = canalActual;
-            canal <<= 2; // desplaça dos bits 0000 0010 -> 0000 0100 
-
-            ADCON0 = ADCON0 & 0xC3;
-            ADCON0 = ADCON0 | canal;
+            ADCON0 = (unsigned char)((ADCON0 & 0xC3) | (canalActual << 2));
 
             TI_ResetTics(timerAdc);
             estat = 1;

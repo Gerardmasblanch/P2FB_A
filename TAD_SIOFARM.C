@@ -76,10 +76,6 @@ unsigned char SIOFARM_EnviaCaracter(char caracter) {
 }
 
 void SIOFARM_Motor(void) {
-    if(INTCONbits.GIE == 0) {  // evita avancar el motor si encara som dins una interrupcio
-        return;
-    }
-
     if(TI_GetTics(timerSioFarm) == 0) {
         return;
     }

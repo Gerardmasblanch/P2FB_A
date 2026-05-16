@@ -43,7 +43,7 @@
 //
 static unsigned char Rows, Columns;
 static unsigned char Timer;
-static char *StringPendent;
+static const char *StringPendent;
 //
 //---------------------------End--VARIABLES---AREA-----------
 //
@@ -150,7 +150,7 @@ void LcPutChar(char c) {
 }
 
 
-void LcPutString(char *s) {
+void LcPutString(const char *s) {
 // Post: Paints the string from the actual cursor position. 
 // The coordinate criteria is the same as the LcPutChar. 
 // Post: Can last up to 40us for each char of a routine output.

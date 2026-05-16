@@ -12,6 +12,7 @@
 void SIO_Init(void);
 
 unsigned char SIO_PutChar(unsigned char ElValor);
+unsigned char SIO_PutString(const char *text);
 char *SIO_GetLine(void);
 void SIO_Motor(void);
 

@@ -34,7 +34,7 @@
 void LcInit(char rows, char columns);
 void LcClear(void);
 void LcGotoXY(char Column, char Row);
-void LcPutString(char *s);
+void LcPutString(const char *s);
 
 void LcMotor(void);
 unsigned char LcIsBusy(void);
