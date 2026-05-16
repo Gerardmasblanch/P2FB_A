@@ -205,13 +205,13 @@ void CantaIR(char IR) {
 	SetD4_D7Sortida();
 	RSDown();
 	RWDown();
-	EnableUp();
 	CantaPartAlta(IR); 		// Data Setup = 80ns
+	EnableUp();
 	EnableUp();				// Making sure the pulse lasts 500ns
 	EnableDown();   		// The pulse width "enable" is higher than 230ns
 	EnableDown();
-	EnableUp();
 	CantaPartBaixa(IR); 	// Data Setup = 80ns
+	EnableUp();
 	EnableUp();				// Making sure the pulse lasts 500ns
 	EnableDown();   		// The pulse width "enable" is higher than 230ns
 	SetD4_D7Entrada();
@@ -221,13 +221,13 @@ void CantaData(char Data) {
 	SetD4_D7Sortida();
 	RSUp();
 	RWDown();
-	EnableUp();
 	CantaPartAlta(Data); 	// Data Setup = 80ns
+	EnableUp();
 	EnableUp();				// Making sure the pulse lasts 500ns
 	EnableDown();   		// The pulse width "enable" is higher than 230ns
 	EnableDown();
-	EnableUp();
 	CantaPartBaixa(Data); 	// Data Setup = 80ns
+	EnableUp();
 	EnableUp();				// Making sure the pulse lasts 500ns
 	EnableDown();   		// The pulse width "enable" is higher than 230ns
 	SetD4_D7Entrada();
@@ -254,11 +254,11 @@ void WaitForBusy(void) { char Busy;
 void EscriuPrimeraOrdre(char ordre) {
 	// Write the first as if there are 8 bits.
 	SetD4_D7Sortida();  RSDown(); RWDown();
-	EnableUp(); EnableUp();
 	 SetD7(ordre & 0x08 ? 1 : 0);
 	 SetD6(ordre & 0x04 ? 1 : 0);
 	 SetD5(ordre & 0x02 ? 1 : 0);
 	 SetD4(ordre & 0x01 ? 1 : 0);
+	EnableUp(); EnableUp();
 	EnableDown();
 }
 

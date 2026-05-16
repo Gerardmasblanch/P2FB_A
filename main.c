@@ -49,6 +49,7 @@ void main(void)
 
     while (1) {
         SIOFARM_Motor();
+        SIO_Motor();
         LcMotor();
         AD_Motor();
         JOY_Motor();

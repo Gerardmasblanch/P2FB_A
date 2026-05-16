@@ -24,7 +24,6 @@ static unsigned char bitTx;
 static unsigned char ticsTx;
 
 static unsigned char timerSioFarm;
-static unsigned char quantsAux;
 static char caracterAux;
 
 static void MotorRx(void);
@@ -44,14 +43,6 @@ void SIOFARM_Init(void) {
 
     TI_NewTimer(&timerSioFarm);
     TI_ResetTics(timerSioFarm);
-}
-
-unsigned char SIOFARM_HiHaCaracter(void) {
-    di();
-    quantsAux = quantsRx;
-    ei();
-
-    return quantsAux;
 }
 
 char SIOFARM_LlegeixCaracter(void) {

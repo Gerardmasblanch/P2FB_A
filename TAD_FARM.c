@@ -42,6 +42,9 @@
 #define MSG_DATA_OK 1
 #define MSG_DATA_ERROR 2
 #define MSG_BACKSPACE 3
+#define RECORD_SHIFT 3
+#define EEPROM_FI 255
+#define ADRECA_REGISTRE(index) ((unsigned char)(EEPROM_RECORDS + ((index) << RECORD_SHIFT)))
 
 #define TXT_LLET "Llet: "
 #define TXT_PERNIL "Pernil: "
@@ -60,28 +63,38 @@
 #define TXT_TIPUS_GALLINA "GALLINA"
 #define TXT_NOU_PRODUCTE "Nou Producte"
 #define TXT_NOU_ANIMAL "Nou Animal"
-#define TXT_DATA_PRODUCTS "DATA_PRODUCTS:"
-#define TXT_DATA_ANIMALS "DATA_ANIMALS:"
+#define TXT_DATA_PRODUCTS "DATA_PRODUCTS:%V$%P$%G$%C\r\n"
+#define TXT_DATA_ANIMALS "DATA_ANIMALS:%T$%N$%S\r\n"
 #define TXT_SLEEP "SLEEP"
 #define TXT_AWAKE "AWAKE"
-#define TXT_LINIA_NOVA "\r\n"
 #define TXT_FINISH "FINISH\r\n"
 #define TXT_SLEEP_OK "SLEEP_SUCCESSFUL\r\n"
 #define TXT_SLEEP_KO "SLEEP_UNSUCCESSFUL\r\n"
 
+static const unsigned char tempsProducte[NUM_ESPECIES] = {TEMPS_LLET, TEMPS_PERNIL, TEMPS_PINZELL, TEMPS_OUS};
+static const unsigned char colProducte[NUM_ESPECIES] = {6, 8, 9, 5};
+static const unsigned char colAnimal[NUM_ESPECIES] = {6, 6, 8, 9};
+static const char *textProducte[NUM_ESPECIES] = {TXT_LLET, TXT_PERNIL, TXT_PINZELL, TXT_OUS};
+static const char *textAnimal[NUM_ESPECIES] = {TXT_VACA, TXT_PORC, TXT_CAVALL, TXT_GALLINA};
+static const char *textTipusJava[NUM_ESPECIES] = {TXT_TIPUS_VACA, TXT_TIPUS_PORC, TXT_TIPUS_CAVALL, TXT_TIPUS_GALLINA};
+
 static char bufferData[LONG_DATA + 1];
-static char bufferJava[LONG_JAVA + 1];
+static char *liniaJava;
 static char dataLCD[11];
 static char nomLCD[17];
-static char sortidaJava[40];
-static char lcdLinia2[17];
+static char numeroJava[4];
 
 static unsigned char idxBuffer;
 static unsigned char overflowBuffer;
-static unsigned char idxJava;
 
 static unsigned char idxSortidaJava;
 static unsigned char enviantJava;
+static unsigned char idxTextJava;
+static unsigned char idxNumeroJava;
+static unsigned char midaNumeroJava;
+static unsigned char animalSortidaJava;
+static const char *formatJava;
+static const char *textJava;
 static unsigned char missatgeData;
 static unsigned char idxMissatgeData;
 
@@ -95,6 +108,7 @@ static unsigned char avisProducte;
 static unsigned char avisTipus;
 static unsigned char estatAvis;
 static unsigned char avisValor;
+static unsigned char avisColNumero;
 static unsigned char cuaAvisInfo[MIDA_AVIS];
 static unsigned char quantsAvis;
 static unsigned char rebellio;
@@ -125,13 +139,14 @@ static unsigned char sleepIndex;
 static unsigned char esperaLdr;
 static unsigned char idxRevisaSon;
 static unsigned char revisaSon;
+static unsigned char idxCarregaEeprom;
 
 static void EnviaProductes(void);
 
 static void GuardaAnimal(unsigned char index) {
     unsigned char adreca;
 
-    adreca = EEPROM_RECORDS + index * RECORD_SIZE;
+    adreca = ADRECA_REGISTRE(index);
     EEPROM_Write(adreca, tipusAnimal[index]);
     EEPROM_Write(adreca + 1, numAnimal[index]);
     EEPROM_Write(adreca + 2, sonAnimal[index]);
@@ -144,42 +159,14 @@ static void GuardaAnimal(unsigned char index) {
 }
 
 static void ActualitzaSonPerData(void) {
-    unsigned char i;
-    unsigned char adreca;
-    unsigned char d;
-    unsigned char m;
-    unsigned char h;
-    unsigned char mn;
-
     despertsEspecie[0] = despertsEspecie[1] = despertsEspecie[2] = despertsEspecie[3] = 0;
-
-    i = 0;
-    while(i < totalAnimals) {
-        adreca = EEPROM_RECORDS + i * RECORD_SIZE;
-        d = EEPROM_Read(adreca + 3);
-        m = EEPROM_Read(adreca + 4);
-        h = EEPROM_Read(adreca + 5);
-        mn = EEPROM_Read(adreca + 6);
-
-        if(d != dia || m != mes || hora > h || (hora == h && minut >= mn + 2)) {
-            sonAnimal[i] = DORMIT;
-            tempsDespert[i] = TEMPS_SON;
-        } else {
-            sonAnimal[i] = AWAKE;
-            tempsDespert[i] = 0;
-            despertsEspecie[tipusAnimal[i]]++;
-        }
-
-        i++;
-    }
+    idxRevisaSon = 0;
+    revisaSon = 2;
 }
 
-static void CarregaEeprom(void) {
-    unsigned char i;
-    unsigned char adreca;
-    unsigned char tipus;
-
+static void ComencaCarregaEeprom(void) {
     totalAnimals = 0;
+    idxCarregaEeprom = EEPROM_FI;
     pendentsMinim = NUM_ESPECIES * MIN_ANIMALS_ESPECIE;
     quantsEspecie[0] = quantsEspecie[1] = quantsEspecie[2] = quantsEspecie[3] = 0;
     despertsEspecie[0] = despertsEspecie[1] = despertsEspecie[2] = despertsEspecie[3] = 0;
@@ -188,25 +175,12 @@ static void CarregaEeprom(void) {
     if(EEPROM_Read(0) != EEPROM_MAGIC) return;
 
     totalAnimals = EEPROM_Read(1);
-    if(totalAnimals > MAX_ANIMALS) totalAnimals = 0;
-
-    i = 0;
-    while(i < totalAnimals) {
-        adreca = EEPROM_RECORDS + i * RECORD_SIZE;
-        tipusAnimal[i] = EEPROM_Read(adreca);
-        numAnimal[i] = EEPROM_Read(adreca + 1);
-        sonAnimal[i] = EEPROM_Read(adreca + 2);
-        tipus = tipusAnimal[i];
-        if(tipus >= NUM_ESPECIES) tipus = VACA;
-
-        tipusAnimal[i] = tipus;
-        tempsDespert[i] = 0;
-        if(quantsEspecie[tipus] < MIN_ANIMALS_ESPECIE) pendentsMinim--;
-        quantsEspecie[tipus]++;
-        if(sonAnimal[i] == AWAKE) despertsEspecie[tipus]++;
-
-        i++;
+    if(totalAnimals > MAX_ANIMALS) {
+        totalAnimals = 0;
+        return;
     }
+
+    if(totalAnimals != 0) idxCarregaEeprom = 0;
 }
 
 static void PosaDataLCD(void) {
@@ -247,142 +221,127 @@ static unsigned char ValidaData(void) {
     return 1;
 }
 
-static void AfegeixChar(char c) {
-    if(idxSortidaJava < 39) {
-        sortidaJava[idxSortidaJava] = c;
-        idxSortidaJava++;
-        sortidaJava[idxSortidaJava] = 0;
-    }
-}
-
-static void AfegeixText(const char *text) {
-    unsigned char i;
-
-    i = 0;
-    while(text[i] != 0) {
-        AfegeixChar(text[i]);
-        i++;
-    }
-}
-
-static void AfegeixNumero(unsigned char num) {
-    unsigned char centenes;
-    unsigned char desenes;
-
-    centenes = 0;
-    desenes = 0;
-
-    while(num >= 100) {
-        num -= 100;
-        centenes++;
-    }
-
-    while(num >= 10) {
-        num -= 10;
-        desenes++;
-    }
-
-    if(centenes != 0) AfegeixChar((char)(centenes + '0'));
-    if(centenes != 0 || desenes != 0) AfegeixChar((char)(desenes + '0'));
-    AfegeixChar((char)(num + '0'));
-}
-
-static void LcdAfegeixChar(unsigned char *index, char c) {
-    if(*index < 16) {
-        lcdLinia2[*index] = c;
-        (*index)++;
-        lcdLinia2[*index] = 0;
-    }
-}
-
-static void LcdAfegeixText(unsigned char *index, const char *text) {
-    unsigned char i;
-
-    i = 0;
-    while(text[i] != 0) {
-        LcdAfegeixChar(index, text[i]);
-        i++;
-    }
-}
-
-static void LcdAfegeixNumero(unsigned char *index, unsigned char num) {
-    unsigned char centenes;
-    unsigned char desenes;
-
-    centenes = 0;
-    desenes = 0;
-
-    while(num >= 100) {
-        num -= 100;
-        centenes++;
-    }
-
-    while(num >= 10) {
-        num -= 10;
-        desenes++;
-    }
-
-    if(centenes != 0) LcdAfegeixChar(index, (char)(centenes + '0'));
-    if(centenes != 0 || desenes != 0) LcdAfegeixChar(index, (char)(desenes + '0'));
-    LcdAfegeixChar(index, (char)(num + '0'));
-}
-
-static void PreparaLiniaAvis(void) {
-    unsigned char index;
-
-    index = 0;
-    lcdLinia2[0] = 0;
-
-    if(avisProducte) {
-        switch(avisTipus) {
-            case VACA:
-                LcdAfegeixText(&index, TXT_LLET);
-                break;
-            case PORC:
-                LcdAfegeixText(&index, TXT_PERNIL);
-                break;
-            case CAVALL:
-                LcdAfegeixText(&index, TXT_PINZELL);
-                break;
-            case GALLINA:
-                LcdAfegeixText(&index, TXT_OUS);
-                break;
-        }
-    } else {
-        switch(avisTipus) {
-            case VACA:
-                LcdAfegeixText(&index, TXT_VACA);
-                break;
-            case PORC:
-                LcdAfegeixText(&index, TXT_PORC);
-                break;
-            case CAVALL:
-                LcdAfegeixText(&index, TXT_CAVALL);
-                break;
-            case GALLINA:
-                LcdAfegeixText(&index, TXT_GALLINA);
-                break;
-        }
-    }
-
-    LcdAfegeixNumero(&index, avisValor);
-}
-
-static void ComencaSortidaJava(void) {
+static void ComencaSortidaJava(const char *text) {
+    formatJava = text;
+    textJava = 0;
     idxSortidaJava = 0;
-    sortidaJava[0] = 0;
+    idxTextJava = 0;
+    idxNumeroJava = 0;
+    midaNumeroJava = 0;
     enviantJava = 1;
 }
 
+static void PreparaNumeroJava(unsigned char num) {
+    unsigned char centenes;
+    unsigned char desenes;
+
+    centenes = 0;
+    desenes = 0;
+    idxNumeroJava = 0;
+    midaNumeroJava = 0;
+
+    if(num >= 100) {
+        num -= 100;
+        centenes++;
+        if(num >= 100) {
+            num -= 100;
+            centenes++;
+        }
+        numeroJava[midaNumeroJava] = (char)(centenes + '0');
+        midaNumeroJava++;
+    }
+
+    if(num >= 80) {
+        num -= 80;
+        desenes += 8;
+    }
+    if(num >= 40) {
+        num -= 40;
+        desenes += 4;
+    }
+    if(num >= 20) {
+        num -= 20;
+        desenes += 2;
+    }
+    if(num >= 10) {
+        num -= 10;
+        desenes++;
+    }
+
+    if(centenes != 0 || desenes != 0) {
+        numeroJava[midaNumeroJava] = (char)(desenes + '0');
+        midaNumeroJava++;
+    }
+
+    numeroJava[midaNumeroJava] = (char)(num + '0');
+    midaNumeroJava++;
+    numeroJava[midaNumeroJava] = 0;
+}
+
+static void PreparaTokenJava(char token) {
+    switch(token) {
+        case 'V':
+            PreparaNumeroJava(productes[VACA]);
+            break;
+        case 'P':
+            PreparaNumeroJava(productes[PORC]);
+            break;
+        case 'G':
+            PreparaNumeroJava(productes[GALLINA]);
+            break;
+        case 'C':
+            PreparaNumeroJava(productes[CAVALL]);
+            break;
+        case 'N':
+            PreparaNumeroJava(numAnimal[animalSortidaJava]);
+            break;
+        case 'T':
+            textJava = textTipusJava[tipusAnimal[animalSortidaJava]];
+            idxTextJava = 0;
+            break;
+        case 'S':
+            textJava = (sonAnimal[animalSortidaJava] == DORMIT) ? TXT_SLEEP : TXT_AWAKE;
+            idxTextJava = 0;
+            break;
+    }
+}
+
 static void MotorSortidaJava(void) {
+    char c;
+
     if(!enviantJava) return;
-    if(sortidaJava[idxSortidaJava] == 0) {
+
+    if(textJava != 0) {
+        c = textJava[idxTextJava];
+        if(c == 0) {
+            textJava = 0;
+            idxTextJava = 0;
+        } else if(SIO_PutChar(c)) {
+            idxTextJava++;
+        }
+        return;
+    }
+
+    if(midaNumeroJava != 0) {
+        if(SIO_PutChar(numeroJava[idxNumeroJava])) {
+            idxNumeroJava++;
+            if(idxNumeroJava >= midaNumeroJava) midaNumeroJava = 0;
+        }
+        return;
+    }
+
+    c = formatJava[idxSortidaJava];
+    if(c == 0) {
         enviantJava = 0;
         idxSortidaJava = 0;
         return;
     }
-    if(SIO_TXAvail() != 0) {
-        SIO_PutChar(sortidaJava[idxSortidaJava]);
+
+    if(c == '%') {
+        idxSortidaJava++;
+        PreparaTokenJava(formatJava[idxSortidaJava]);
+        idxSortidaJava++;
+    } else if(SIO_PutChar(c)) {
         idxSortidaJava++;
     }
 }
@@ -410,23 +369,6 @@ static void MotorMissatgeData(void) {
 
     if(SIOFARM_EnviaCaracter(text[idxMissatgeData])) {
         idxMissatgeData++;
-    }
-}
-
-static void TextTipus(unsigned char tipus) {
-    switch(tipus) {
-        case VACA:
-            AfegeixText(TXT_TIPUS_VACA);
-            break;
-        case PORC:
-            AfegeixText(TXT_TIPUS_PORC);
-            break;
-        case CAVALL:
-            AfegeixText(TXT_TIPUS_CAVALL);
-            break;
-        case GALLINA:
-            AfegeixText(TXT_TIPUS_GALLINA);
-            break;
     }
 }
 
@@ -459,8 +401,10 @@ static void MotorAvisLcd(void) {
         avisTipus &= 0x03;
         if(avisProducte) {
             avisValor = productes[avisTipus];
+            avisColNumero = colProducte[avisTipus];
         } else {
             avisValor = quantsEspecie[avisTipus];
+            avisColNumero = colAnimal[avisTipus];
         }
         estatAvis = 1;
     }
@@ -487,9 +431,27 @@ static void MotorAvisLcd(void) {
 
         case 3:
             if(!LcIsBusy()) {
-                PreparaLiniaAvis();
                 LcGotoXY(0, 1);
-                LcPutString(lcdLinia2);
+                if(avisProducte) {
+                    LcPutString((char *)textProducte[avisTipus]);
+                } else {
+                    LcPutString((char *)textAnimal[avisTipus]);
+                }
+                estatAvis = 4;
+            }
+            break;
+
+        case 4:
+            if(!LcIsBusy()) {
+                PreparaNumeroJava(avisValor);
+                LcGotoXY(avisColNumero, 1);
+                estatAvis = 5;
+            }
+            break;
+
+        case 5:
+            if(!LcIsBusy()) {
+                LcPutString(numeroJava);
                 TI_ResetTics(timerLcd);
                 hiHaAvisLcd = 1;
                 estatAvis = 0;
@@ -533,12 +495,44 @@ static void GeneraEspecie(unsigned char tipus) {
     }
 }
 
+static void ActualitzaProducte(unsigned char tipus) {
+    comptProducte[tipus]++;
+    if(comptProducte[tipus] >= tempsProducte[tipus]) {
+        comptProducte[tipus] = 0;
+        Produeix(tipus);
+    }
+}
+
 static void RevisaSonAnimal(void) {
     unsigned char tipus;
+    unsigned char adreca;
+    unsigned char d;
+    unsigned char m;
+    unsigned char h;
+    unsigned char mn;
 
     if(!revisaSon) return;
     if(idxRevisaSon >= totalAnimals) {
         revisaSon = 0;
+        return;
+    }
+
+    if(revisaSon == 2) {
+        adreca = ADRECA_REGISTRE(idxRevisaSon);
+        d = EEPROM_Read(adreca + 3);
+        m = EEPROM_Read(adreca + 4);
+        h = EEPROM_Read(adreca + 5);
+        mn = EEPROM_Read(adreca + 6);
+
+        if(d != dia || m != mes || hora > h || (hora == h && minut >= mn + 2)) {
+            sonAnimal[idxRevisaSon] = DORMIT;
+            tempsDespert[idxRevisaSon] = TEMPS_SON;
+        } else {
+            sonAnimal[idxRevisaSon] = AWAKE;
+            tempsDespert[idxRevisaSon] = 0;
+            despertsEspecie[tipusAnimal[idxRevisaSon]]++;
+        }
+        idxRevisaSon++;
         return;
     }
 
@@ -595,27 +589,10 @@ static void NouSegon(void) {
     }
 
     if(!rebellio) {
-        comptProducte[VACA]++;
-        comptProducte[PORC]++;
-        comptProducte[CAVALL]++;
-        comptProducte[GALLINA]++;
-
-        if(comptProducte[VACA] >= TEMPS_LLET) {
-            comptProducte[VACA] = 0;
-            Produeix(VACA);
-        }
-        if(comptProducte[PORC] >= TEMPS_PERNIL) {
-            comptProducte[PORC] = 0;
-            Produeix(PORC);
-        }
-        if(comptProducte[CAVALL] >= TEMPS_PINZELL) {
-            comptProducte[CAVALL] = 0;
-            Produeix(CAVALL);
-        }
-        if(comptProducte[GALLINA] >= TEMPS_OUS) {
-            comptProducte[GALLINA] = 0;
-            Produeix(GALLINA);
-        }
+        ActualitzaProducte(VACA);
+        ActualitzaProducte(PORC);
+        ActualitzaProducte(CAVALL);
+        ActualitzaProducte(GALLINA);
     }
 
     GeneraEspecie(VACA);
@@ -650,7 +627,7 @@ static void ResetGranja(void) {
 static void ActualitzaLed(unsigned int ticsFarm) {
     unsigned char intensitat;
 
-    if(rebellio || estat != ESTAT_FUNCIONAMENT || ticsFarm >= TICS_SEGON) {
+    if(rebellio || dia == 0 || nomLCD[0] == 0) {
         LATAbits.LATA4 = 0;
         return;
     }
@@ -665,7 +642,7 @@ static void ActualitzaLed(unsigned int ticsFarm) {
 }
 
 static void ProcessaConsum(void) {
-    switch(bufferJava[8]) {
+    switch(liniaJava[8]) {
         case '0': // fried egg: 1 ou
             if(productes[GALLINA] != 0) productes[GALLINA]--;
             break;
@@ -693,9 +670,8 @@ static unsigned char NumDespres(unsigned char index) {
     unsigned char num;
 
     num = 0;
-    while(bufferJava[index] >= '0' && bufferJava[index] <= '9') {
-        num = num * 10 + bufferJava[index] - '0';
-        index++;
+    for(; liniaJava[index] >= '0' && liniaJava[index] <= '9'; index++) {
+        num = num * 10 + liniaJava[index] - '0';
     }
 
     return num;
@@ -708,9 +684,8 @@ static void ProcessaInitialize(void) {
 
     i = 11;
     j = 0;
-    while(bufferJava[i] != '$' && bufferJava[i] != 0 && j < 15) {
-        nomLCD[j] = bufferJava[i];
-        i++;
+    for(; liniaJava[i] != '$' && liniaJava[i] != 0 && j < 15; i++) {
+        nomLCD[j] = liniaJava[i];
         j++;
     }
     nomLCD[j] = '!';
@@ -718,13 +693,12 @@ static void ProcessaInitialize(void) {
     tempsGeneracio[0] = tempsGeneracio[1] = tempsGeneracio[2] = tempsGeneracio[3] = 0;
 
     camp = 0;
-    while(bufferJava[i] != 0 && camp < 4) {
-        if(bufferJava[i] == '$') {
+    for(; liniaJava[i] != 0 && camp < 4; i++) {
+        if(liniaJava[i] == '$') {
             i++;
             tempsGeneracio[camp] = NumDespres(i);
             camp++;
         }
-        i++;
     }
 
     comptGeneracio[0] = comptGeneracio[1] = comptGeneracio[2] = comptGeneracio[3] = 0;
@@ -739,114 +713,67 @@ static void ProcessaInitialize(void) {
 }
 
 static void EnviaProductes(void) {
-    ComencaSortidaJava();
-    AfegeixText(TXT_DATA_PRODUCTS);
-    AfegeixNumero(productes[VACA]);
-    AfegeixChar('$');
-    AfegeixNumero(productes[PORC]);
-    AfegeixChar('$');
-    AfegeixNumero(productes[GALLINA]);
-    AfegeixChar('$');
-    AfegeixNumero(productes[CAVALL]);
-    AfegeixText(TXT_LINIA_NOVA);
-    idxSortidaJava = 0;
+    ComencaSortidaJava(TXT_DATA_PRODUCTS);
 }
 
 static void PreparaAnimal(void) {
-    ComencaSortidaJava();
-    AfegeixText(TXT_DATA_ANIMALS);
-    TextTipus(tipusAnimal[idxAnimalEnviar]);
-    AfegeixChar('$');
-    AfegeixNumero(numAnimal[idxAnimalEnviar]);
-    AfegeixChar('$');
-    if(sonAnimal[idxAnimalEnviar] == DORMIT) {
-        AfegeixText(TXT_SLEEP);
-    } else {
-        AfegeixText(TXT_AWAKE);
-    }
-    AfegeixText(TXT_LINIA_NOVA);
-    idxSortidaJava = 0;
+    animalSortidaJava = idxAnimalEnviar;
+    ComencaSortidaJava(TXT_DATA_ANIMALS);
 }
 
 static void EnviaFinish(void) {
-    ComencaSortidaJava();
-    AfegeixText(TXT_FINISH);
-    idxSortidaJava = 0;
+    ComencaSortidaJava(TXT_FINISH);
 }
 
 static void ProcessaSleep(void) {
     unsigned char i;
-    unsigned char index;
 
-    i = 6;
+    i = 10;
     sleepTipus = VACA;
-    if(bufferJava[i] == 'P') sleepTipus = PORC;
-    if(bufferJava[i] == 'C' && bufferJava[i + 1] == 'A') sleepTipus = CAVALL;
-    if(bufferJava[i] == 'G') sleepTipus = GALLINA;
-    if(bufferJava[i] == 'V') sleepTipus = VACA;
-
-    while(bufferJava[i] != '$' && bufferJava[i] != 0) i++;
-    if(bufferJava[i] == '$') i++;
+    if(liniaJava[6] == 'P') sleepTipus = PORC;
+    if(liniaJava[6] == 'C') {
+        sleepTipus = CAVALL;
+        i = 12;
+    }
+    if(liniaJava[6] == 'G') {
+        sleepTipus = GALLINA;
+        i = 13;
+    }
+    if(liniaJava[i] == '$') i++;
     sleepNumero = NumDespres(i);
-    sleepIndex = 255;
-
-    index = 0;
-    while(index < totalAnimals) {
-        if(tipusAnimal[index] == sleepTipus && numAnimal[index] == sleepNumero) {
-            sleepIndex = index;
-        }
-        index++;
-    }
-
-    if(sleepIndex != 255) {
-        esperaLdr = 1;
-        TI_ResetTics(timerSleep);
-    }
+    sleepIndex = 0;
+    esperaLdr = 2;
 }
 
 static void ProcessaJava(void) {
-    if(bufferJava[0] == 'G' && bufferJava[4] == 'P') {
+    if(liniaJava[0] == 'G' && liniaJava[4] == 'P') {
         EnviaProductes();
-    } else if(bufferJava[0] == 'G') {
+    } else if(liniaJava[0] == 'G') {
         enviantAnimals = 1;
         idxAnimalEnviar = 0;
-    } else if(bufferJava[0] == 'R') {
+    } else if(liniaJava[0] == 'R') {
         ResetGranja();
-    } else if(bufferJava[0] == 'S' && bufferJava[1] == 'T') {
-        if(bufferJava[2] == 'A') {
+    } else if(liniaJava[0] == 'S' && liniaJava[1] == 'T') {
+        if(liniaJava[2] == 'A') {
             rebellio = 1;
             LATAbits.LATA4 = 0;
         } else {
             rebellio = 0;
             comptProducte[0] = comptProducte[1] = comptProducte[2] = comptProducte[3] = 0;
         }
-    } else if(bufferJava[0] == 'C') {
+    } else if(liniaJava[0] == 'C') {
         ProcessaConsum();
-    } else if(bufferJava[0] == 'S' && bufferJava[1] == 'L') {
+    } else if(liniaJava[0] == 'S' && liniaJava[1] == 'L') {
         ProcessaSleep();
-    } else if(bufferJava[0] == 'I') {
+    } else if(liniaJava[0] == 'I') {
         ProcessaInitialize();
     }
 }
 
 static void LlegeixJava(void) {
-    char c;
-
-    if(!SIO_RXAvail()) return;
-
-    c = SIO_GetChar();
-    if(c == '\r') return;
-
-    if(c == '\n') {
-        bufferJava[idxJava] = 0;
+    liniaJava = SIO_GetLine();
+    if(liniaJava != 0) {
         ProcessaJava();
-        idxJava = 0;
-        return;
-    }
-
-    if(idxJava < LONG_JAVA) {
-        bufferJava[idxJava] = c;
-        idxJava++;
     }
 }
 
@@ -854,9 +781,8 @@ static void LlegeixDataTerminal(unsigned char inicial) {
     char c;
 
     if(!SIOFARM_TxLliure()) return;
-    if(!SIOFARM_HiHaCaracter()) return;
-
     c = SIOFARM_LlegeixCaracter();
+    if(c == 0) return;
 
     if(c == '\r') {
         bufferData[idxBuffer] = 0;
@@ -899,7 +825,6 @@ void FARM_Init(void) {
     estat = ESTAT_DEMANAR_DATA;
     idxBuffer = 0;
     overflowBuffer = 0;
-    idxJava = 0;
     idxSortidaJava = 0;
     enviantJava = 0;
     missatgeData = 0;
@@ -916,7 +841,6 @@ void FARM_Init(void) {
     rebellio = 0;
     resetPas = 0;
     ledBaixant = 0;
-    pendentsMinim = NUM_ESPECIES * MIN_ANIMALS_ESPECIE;
     idxRevisaSon = 0;
     revisaSon = 0;
     estatAvis = 0;
@@ -933,19 +857,42 @@ void FARM_Init(void) {
     TI_ResetTics(timerFarm);
     TI_ResetTics(timerLcd);
     TI_ResetTics(timerSleep);
-    CarregaEeprom();
+    ComencaCarregaEeprom();
 }
 
 void FARM_Motor(void) {
     unsigned int ticsFarm;
+    unsigned char adreca;
+    unsigned char tipus;
 
     ticsFarm = TI_GetTics(timerFarm);
-    ActualitzaLed(ticsFarm);
 
     if(ticsFarm >= TICS_SEGON) {
         TI_ResetTics(timerFarm);
         ledBaixant = !ledBaixant;
         if(estat == ESTAT_FUNCIONAMENT) NouSegon();
+        ticsFarm = 0;
+    }
+
+    ActualitzaLed(ticsFarm);
+
+    if(idxCarregaEeprom != EEPROM_FI) {
+        adreca = ADRECA_REGISTRE(idxCarregaEeprom);
+        tipusAnimal[idxCarregaEeprom] = EEPROM_Read(adreca);
+        numAnimal[idxCarregaEeprom] = EEPROM_Read(adreca + 1);
+        sonAnimal[idxCarregaEeprom] = EEPROM_Read(adreca + 2);
+        tipus = tipusAnimal[idxCarregaEeprom];
+        if(tipus >= NUM_ESPECIES) tipus = VACA;
+
+        tipusAnimal[idxCarregaEeprom] = tipus;
+        tempsDespert[idxCarregaEeprom] = 0;
+        if(quantsEspecie[tipus] < MIN_ANIMALS_ESPECIE) pendentsMinim--;
+        quantsEspecie[tipus]++;
+        if(sonAnimal[idxCarregaEeprom] == AWAKE) despertsEspecie[tipus]++;
+
+        idxCarregaEeprom++;
+        if(idxCarregaEeprom >= totalAnimals) idxCarregaEeprom = EEPROM_FI;
+        return;
     }
 
     if(hiHaAvisLcd && TI_GetTics(timerLcd) >= TICS_SEGON * 3) {
@@ -958,6 +905,8 @@ void FARM_Motor(void) {
 
     MotorAvisLcd();
     MotorMissatgeData();
+    LlegeixJava();
+
     if(missatgeData != 0) return;
     if(estatAvis != 0) return;
 
@@ -989,19 +938,27 @@ void FARM_Motor(void) {
     }
 
     if(esperaLdr) {
+        if(esperaLdr == 2) {
+            if(sleepIndex >= totalAnimals) {
+                esperaLdr = 0;
+            } else if(tipusAnimal[sleepIndex] == sleepTipus && numAnimal[sleepIndex] == sleepNumero) {
+                esperaLdr = 1;
+                TI_ResetTics(timerSleep);
+            } else {
+                sleepIndex++;
+            }
+            return;
+        }
+
         if(AD_GetMostra(2) < 40) {
             if(sonAnimal[sleepIndex] == DORMIT) despertsEspecie[tipusAnimal[sleepIndex]]++;
             sonAnimal[sleepIndex] = AWAKE;
             tempsDespert[sleepIndex] = 0;
             GuardaAnimal(sleepIndex);
-            ComencaSortidaJava();
-            AfegeixText(TXT_SLEEP_OK);
-            idxSortidaJava = 0;
+            ComencaSortidaJava(TXT_SLEEP_OK);
             esperaLdr = 0;
         } else if(TI_GetTics(timerSleep) >= TICS_SEGON * TEMPS_DESCANS) {
-            ComencaSortidaJava();
-            AfegeixText(TXT_SLEEP_KO);
-            idxSortidaJava = 0;
+            ComencaSortidaJava(TXT_SLEEP_KO);
             esperaLdr = 0;
         }
         return;
@@ -1016,7 +973,6 @@ void FARM_Motor(void) {
 
         case ESTAT_LLEGIR_DATA:
             LlegeixDataTerminal(1);
-            LlegeixJava();
             break;
 
         case ESTAT_LCD_CLEAR:
@@ -1044,12 +1000,10 @@ void FARM_Motor(void) {
 
         case ESTAT_ESPERAR_JAVA:
             LlegeixDataTerminal(0);
-            LlegeixJava();
             break;
 
         case ESTAT_FUNCIONAMENT:
             LlegeixDataTerminal(0);
-            LlegeixJava();
             break;
     }
 }

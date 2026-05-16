@@ -8,7 +8,6 @@ extern unsigned char estatTxSioFarm;
 
 void SIOFARM_Init(void);
 
-unsigned char SIOFARM_HiHaCaracter(void);
 char SIOFARM_LlegeixCaracter(void);
 unsigned char SIOFARM_EnviaCaracter(char caracter);
 

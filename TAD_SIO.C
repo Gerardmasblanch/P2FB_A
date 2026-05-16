@@ -16,11 +16,15 @@
 
 #define MAX_TX 16
 #define MASK_TX 0x0F
+#define MAX_LINIA_RX 48
 
 static unsigned char CuaRX[MAX_RX];
 static unsigned char IniciRX;
 static unsigned char FiRX;
 static unsigned char QuantsRX;
+static char LiniaRX[MAX_LINIA_RX + 1];
+static unsigned char IndexLiniaRX;
+static unsigned char LiniaLlesta;
 
 static unsigned char CuaTX[MAX_TX];
 static unsigned char IniciTX;
@@ -31,6 +35,8 @@ void SIO_Init(void) {
     IniciRX = 0;
     FiRX = 0;
     QuantsRX = 0;
+    IndexLiniaRX = 0;
+    LiniaLlesta = 0;
 
     IniciTX = 0;
     FiTX = 0;
@@ -78,43 +84,57 @@ void SIO_InterrupcioTX(void) {
     }
 }
 
-unsigned char SIO_RXAvail(void) {
-    return QuantsRX;
-}
+unsigned char SIO_PutChar(unsigned char ElValor) {
+    if((PIR1bits.TXIF == 1) && (QuantsTX == 0)) {
+        TXREG = ElValor;
+        return 1;
+    }
 
-unsigned char SIO_GetChar(void) {
-    unsigned char ElValor;
+    if(QuantsTX >= MAX_TX) return 0;
 
     di();
+    CuaTX[IniciTX] = ElValor;
+    IniciTX++;
+    IniciTX &= MASK_TX;
+    QuantsTX++;
+    ei();
 
-    ElValor = CuaRX[FiRX];
+    PIE1bits.TXIE = 1;
+    return 1;
+}
+
+char *SIO_GetLine(void) {
+    if(!LiniaLlesta) return 0;
+
+    LiniaLlesta = 0;
+    IndexLiniaRX = 0;
+    return LiniaRX;
+}
+
+void SIO_Motor(void) {
+    char c;
+
+    if(LiniaLlesta) return;
+
+    di();
+    if(QuantsRX == 0) {
+        ei();
+        return;
+    }
+
+    c = CuaRX[FiRX];
     FiRX++;
     FiRX &= MASK_RX;
     QuantsRX--;
-
     ei();
 
-    return ElValor;
-}
+    if(c == '\r') return;
 
-unsigned char SIO_TXAvail(void) {
-    return MAX_TX - QuantsTX;
-}
-
-void SIO_PutChar(unsigned char ElValor) {
-    if((PIR1bits.TXIF == 1) && (QuantsTX == 0)) {
-        TXREG = ElValor;
-    } else {
-        di();
-
-        if(QuantsTX < MAX_TX) {
-            CuaTX[IniciTX] = ElValor;
-            IniciTX++;
-            IniciTX &= MASK_TX;
-            QuantsTX++;
-        }
-
-        ei();
-        PIE1bits.TXIE = 1;
+    if(c == '\n') {
+        LiniaRX[IndexLiniaRX] = 0;
+        LiniaLlesta = 1;
+    } else if(IndexLiniaRX < MAX_LINIA_RX) {
+        LiniaRX[IndexLiniaRX] = c;
+        IndexLiniaRX++;
     }
 }

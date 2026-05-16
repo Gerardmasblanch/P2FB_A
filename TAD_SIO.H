@@ -11,11 +11,9 @@
 
 void SIO_Init(void);
 
-unsigned char SIO_RXAvail(void);
-unsigned char SIO_GetChar(void);
-
-unsigned char SIO_TXAvail(void);
-void SIO_PutChar(unsigned char ElValor);
+unsigned char SIO_PutChar(unsigned char ElValor);
+char *SIO_GetLine(void);
+void SIO_Motor(void);
 
 void SIO_InterrupcioRX(void);
 void SIO_InterrupcioTX(void);

@@ -10,6 +10,8 @@
 #define C_RIGHT "MOVE_RIGHT\r\n"
 #define C_SELECT "SELECT\r\n"
 
+static const char *textJoy[6] = {0, C_UP, C_DOWN, C_LEFT, C_RIGHT, C_SELECT};
+
 static unsigned char direccioActual;
 static unsigned char direccioNova;
 static unsigned char botoAnterior;
@@ -32,62 +34,40 @@ void JOY_Init(void) {
 void JOY_Motor(void) {
     const char *cadena;
 
-    cadena = 0;
+    cadena = textJoy[estat];
 
-    switch(estat) {
-        case 0:
-            direccioNova = 0;
-            botoActual = (PORTBbits.RB2 == 0) ? 1 : 0;
+    if(estat == 0) {
+        direccioNova = 0;
+        botoActual = (PORTBbits.RB2 == 0) ? 1 : 0;
 
-            // GetMostra 0-->X 1-->Y
-            if(AD_GetMostra(1) < 80) {
-                direccioNova = 1; // UP
-            } else if(AD_GetMostra(1) > 175) {
-                direccioNova = 2; // DOWN
-            } else if(AD_GetMostra(0) < 80) {
-                direccioNova = 3; // LEFT
-            } else if(AD_GetMostra(0) > 175) {
-                direccioNova = 4; // RIGHT
-            }
+        // GetMostra 0-->X 1-->Y
+        if(AD_GetMostra(1) < 80) {
+            direccioNova = 1; // UP
+        } else if(AD_GetMostra(1) > 175) {
+            direccioNova = 2; // DOWN
+        } else if(AD_GetMostra(0) < 80) {
+            direccioNova = 3; // LEFT
+        } else if(AD_GetMostra(0) > 175) {
+            direccioNova = 4; // RIGHT
+        }
 
-            if(botoActual && !botoAnterior) {
-                indexJoy = 0;
-                estat = 5; // SELECT
-            } else if(direccioActual == 0 && direccioNova != 0) {
-                indexJoy = 0;
-                estat = direccioNova;
-            }
+        if(botoActual && !botoAnterior) {
+            indexJoy = 0;
+            estat = 5; // SELECT
+        } else if(direccioActual == 0 && direccioNova != 0) {
+            indexJoy = 0;
+            estat = direccioNova;
+        }
 
-            direccioActual = direccioNova;
-            botoAnterior = botoActual; // guarda si estava premut per detectar nomes el flanc
-            break;
-
-        case 1:
-            cadena = C_UP;
-            break;
-
-        case 2:
-            cadena = C_DOWN;
-            break;
-
-        case 3:
-            cadena = C_LEFT;
-            break;
-
-        case 4:
-            cadena = C_RIGHT;
-            break;
-
-        case 5:
-            cadena = C_SELECT;
-            break;
+        direccioActual = direccioNova;
+        botoAnterior = botoActual; // guarda si estava premut per detectar nomes el flanc
+        cadena = textJoy[estat];
     }
 
     if(cadena != 0) {
         if(cadena[indexJoy] == 0) {
             estat = 0;
-        } else if(SIO_TXAvail() != 0) {
-            SIO_PutChar(cadena[indexJoy]);
+        } else if(SIO_PutChar(cadena[indexJoy])) {
             indexJoy++;
         }
     }
