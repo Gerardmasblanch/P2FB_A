@@ -2,7 +2,7 @@
 #define TAD_LED_H
 
 void LED_Init(void);
-void LED_CanviaSentit(void);
-void LED_Motor(unsigned int tics, unsigned char actiu);
+void LED_Actiu(unsigned char actiu);
+void LED_Motor(void);
 
 #endif

@@ -2,7 +2,11 @@
 #include "pic18f4321.h"
 #include "TAD_EEPROM.H"
 
-unsigned char EEPROM_Read(unsigned char adreca) {
+void EEPROM_Init(void) {
+    EECON1bits.WREN = 0;
+}
+
+unsigned char EEPROM_Llegeix(unsigned char adreca) {
     EEADR = adreca;
     EECON1bits.EEPGD = 0;
     EECON1bits.CFGS = 0;
@@ -10,7 +14,7 @@ unsigned char EEPROM_Read(unsigned char adreca) {
     return EEDATA;
 }
 
-void EEPROM_Write(unsigned char adreca, unsigned char valor) {
+void EEPROM_Escriu(unsigned char adreca, unsigned char valor) {
     EEADR = adreca;
     EEDATA = valor;
     EECON1bits.EEPGD = 0;

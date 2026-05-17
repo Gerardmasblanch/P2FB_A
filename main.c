@@ -8,6 +8,7 @@
 #include "TAD_SIO.H"
 #include "TAD_ADC.H"
 #include "TAD_LCD.H"
+#include "TAD_EEPROM.H"
 #include "TAD_LED.H"
 #include "TAD_JOYSTICK.H"
 #include "TAD_FARM.H"
@@ -42,6 +43,7 @@ void main(void)
     SIOFARM_Init();
     SIO_Init();
     AD_Init();
+    EEPROM_Init();
     LED_Init();
     JOY_Init();
     FARM_Init();
@@ -59,6 +61,7 @@ void main(void)
         AD_Motor();
         JOY_Motor();
         FARM_Motor();
+        LED_Motor();
         LATDbits.LATD4 = 0;
     }
 }

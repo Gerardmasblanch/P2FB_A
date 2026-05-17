@@ -1,7 +1,8 @@
 #ifndef TAD_EEPROM_H
 #define TAD_EEPROM_H
 
-unsigned char EEPROM_Read(unsigned char adreca);
-void EEPROM_Write(unsigned char adreca, unsigned char valor);
+void EEPROM_Init(void);
+unsigned char EEPROM_Llegeix(unsigned char adreca);
+void EEPROM_Escriu(unsigned char adreca, unsigned char valor);
 
 #endif

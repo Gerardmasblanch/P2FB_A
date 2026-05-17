@@ -13,7 +13,7 @@
 // 65536 - 64496 = 1040 counts x 0.4us = 416us
 #define T0CON_CONFIG 0x88
 #define RECARREGA_TMR0 64496        // 417 us, suposant FOsc a 10MHz.
-#define TI_NUMTIMERS 6              // ADC, SIOFARM, LCD i 3 timers del FARM
+#define TI_NUMTIMERS 7              // ADC, SIOFARM, LCD, LED i 3 timers del FARM
 
 static unsigned int Timers[TI_NUMTIMERS];
 static unsigned char SeguentTimer;
@@ -53,4 +53,3 @@ unsigned int TI_GetTics (unsigned char TimerHandle) {
     di(); CopiaTicsActual=Tics; ei();
 	return (CopiaTicsActual-Timers[TimerHandle]);
 }
-

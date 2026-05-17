@@ -13,7 +13,7 @@
 // Estat animal: 0 awake, 1 dormit.
 // Limits fixos: 24 animals, 15 per especie, minim 3 per especie, 4 especies.
 
-#define TICS_SEGON 2400
+#define UN_SEGON 2400
 #define SON 120
 #define T_DORMIR 5
 #define MEMORIA_GUARDADA 67
@@ -21,13 +21,13 @@
 #define MIDA_ANIMAL_EEPROM 8
 #define FI_CARREGA_EEPROM 255
 
-#define SIO_BACKSPACE "\b \b"
-#define PRODUCTS "P:"
+#define ESPAI "\b \b"
+#define PRODUCTES "P:"
 #define ANIMALS "A:"
 #define LINIA_NOVA "\r\n"
 #define FINISH "F\r\n"
 #define SLEEP_OK "Y\r\n"
-#define SLEEP_KO "N\r\n"
+#define SLEEP_NO "N\r\n"
 
 static const unsigned char tempsProducte[4] = {47, 31, 23, 13};
 // Posicions pel numero al LCD.
@@ -78,12 +78,12 @@ static unsigned char numAnimal[24];
 static unsigned char sonAnimal[24];
 static unsigned char tempsDespert[24];
 static unsigned char totalAnimals;
-static unsigned char quantsEspecie[4];
+static unsigned char Especies[4];
 static unsigned char despertsEspecie[4];
 
 static unsigned char tempsGeneracio[4];
-static unsigned char comptGeneracio[4];
-static unsigned char comptProducte[4];
+static unsigned char segonsGeneracio[4];
+static unsigned char segonsProducte[4];
 static unsigned char productes[4];
 
 static unsigned char enviantAnimals;
@@ -99,11 +99,11 @@ static unsigned char adrecaRevisaSon;
 static unsigned char adrecaCarregaEeprom;
 static unsigned char adrecaEepromAnimal;
 static unsigned char auxTipus;
-static unsigned char auxD;
-static unsigned char auxM;
-static unsigned char auxH;
-static unsigned char auxMn;
-static unsigned char ledActiu;
+static unsigned char diaUltimDescans;
+static unsigned char mesUltimDescans;
+static unsigned char horaUltimDescans;
+static unsigned char minutUltimDescans;
+
 
 static void NetejaGranja(void) {
     estat = 0; // demanar data
@@ -133,9 +133,9 @@ static void NetejaGranja(void) {
     totalAnimals = 0;
     pendentsMinim = 4 * 3;
     tempsGeneracio[0] = tempsGeneracio[1] = tempsGeneracio[2] = tempsGeneracio[3] = 0;
-    comptGeneracio[0] = comptGeneracio[1] = comptGeneracio[2] = comptGeneracio[3] = 0;
-    comptProducte[0] = comptProducte[1] = comptProducte[2] = comptProducte[3] = 0;
-    quantsEspecie[0] = quantsEspecie[1] = quantsEspecie[2] = quantsEspecie[3] = 0;
+    segonsGeneracio[0] = segonsGeneracio[1] = segonsGeneracio[2] = segonsGeneracio[3] = 0;
+    segonsProducte[0] = segonsProducte[1] = segonsProducte[2] = segonsProducte[3] = 0;
+    Especies[0] = Especies[1] = Especies[2] = Especies[3] = 0;
     productes[0] = productes[1] = productes[2] = productes[3] = 0;
     despertsEspecie[0] = despertsEspecie[1] = despertsEspecie[2] = despertsEspecie[3] = 0;
 }
@@ -196,8 +196,8 @@ static void CarregaUnAnimalEeprom(void) {
 
     tipusAnimal[idxCarregaEeprom] = auxTipus;
     tempsDespert[idxCarregaEeprom] = 0;
-    if(quantsEspecie[auxTipus] < 3) pendentsMinim--;
-    quantsEspecie[auxTipus]++;
+    if(Especies[auxTipus] < 3) pendentsMinim--;
+    Especies[auxTipus]++;
     if(sonAnimal[idxCarregaEeprom] == 0) despertsEspecie[auxTipus]++;
 
     idxCarregaEeprom++;
@@ -326,7 +326,7 @@ static void MotorSortidaJava(void) {
         if(SIO_PutString(textJava)) enviantJava = 0;
     } else if(enviantJava == 2) {
         switch(idxSortidaJava) {
-            case 0: EnviaTextJava(PRODUCTS); break;
+            case 0: EnviaTextJava(PRODUCTES); break;
             case 1: EnviaNumeroJava(productes[0]); break;
             case 2: EnviaTextJava("$"); break;
             case 3: EnviaNumeroJava(productes[1]); break;
@@ -357,7 +357,7 @@ static void MotorMissatgeData(void) {
     if(missatgeData == 0) return;
 
     if(missatgeData == 3) {
-        text = SIO_BACKSPACE;
+        text = ESPAI;
     } else if(missatgeData == 1) {
         text = "\n\rDate and time correct\n\r";
     } else {
@@ -407,7 +407,7 @@ static void MotorAvisLcd(void) {
             avisValor = productes[avisTipus];
             avisColNumero = colNumeroProducte[avisTipus];
         } else {
-            avisValor = quantsEspecie[avisTipus];
+            avisValor = Especies[avisTipus];
             avisColNumero = colNumeroAnimal[avisTipus];
         }
         estatAvis = 1;
@@ -466,14 +466,14 @@ static void MotorAvisLcd(void) {
 
 static void AfegeixAnimal(unsigned char tipus) {
     if(totalAnimals >= 24) return;
-    if(quantsEspecie[tipus] >= 15) return;
-    if(quantsEspecie[tipus] >= 3 && (24 - totalAnimals) <= pendentsMinim) return;
+    if(Especies[tipus] >= 15) return;
+    if(Especies[tipus] >= 3 && (24 - totalAnimals) <= pendentsMinim) return;
 
     tipusAnimal[totalAnimals] = tipus;
-    if(quantsEspecie[tipus] == 0) comptProducte[tipus] = 0;
-    if(quantsEspecie[tipus] < 3) pendentsMinim--;
-    quantsEspecie[tipus]++;
-    numAnimal[totalAnimals] = quantsEspecie[tipus];
+    if(Especies[tipus] == 0) segonsProducte[tipus] = 0;
+    if(Especies[tipus] < 3) pendentsMinim--;
+    Especies[tipus]++;
+    numAnimal[totalAnimals] = Especies[tipus];
     sonAnimal[totalAnimals] = 0;
     tempsDespert[totalAnimals] = 0;
     despertsEspecie[tipus]++;
@@ -491,18 +491,18 @@ static void Produeix(unsigned char tipus) {
 
 static void GeneraEspecie(unsigned char tipus) {
     if(tempsGeneracio[tipus] != 0) {
-        comptGeneracio[tipus]++;
-        if(comptGeneracio[tipus] >= tempsGeneracio[tipus]) {
-            comptGeneracio[tipus] = 0;
+        segonsGeneracio[tipus]++;
+        if(segonsGeneracio[tipus] >= tempsGeneracio[tipus]) {
+            segonsGeneracio[tipus] = 0;
             AfegeixAnimal(tipus);
         }
     }
 }
 
 static void ActualitzaProducte(unsigned char tipus) {
-    comptProducte[tipus]++;
-    if(comptProducte[tipus] >= tempsProducte[tipus]) {
-        comptProducte[tipus] = 0;
+    segonsProducte[tipus]++;
+    if(segonsProducte[tipus] >= tempsProducte[tipus]) {
+        segonsProducte[tipus] = 0;
         Produeix(tipus);
     }
 }
@@ -516,12 +516,12 @@ static void RevisaSonAnimal(void) {
 
     if(revisaSon == 2) {
         adrecaEepromAnimal = adrecaRevisaSon;
-        auxD = EEPROM_Llegeix(adrecaEepromAnimal + 3);
-        auxM = EEPROM_Llegeix(adrecaEepromAnimal + 4);
-        auxH = EEPROM_Llegeix(adrecaEepromAnimal + 5);
-        auxMn = EEPROM_Llegeix(adrecaEepromAnimal + 6);
+        diaUltimDescans = EEPROM_Llegeix(adrecaEepromAnimal + 3);
+        mesUltimDescans = EEPROM_Llegeix(adrecaEepromAnimal + 4);
+        horaUltimDescans = EEPROM_Llegeix(adrecaEepromAnimal + 5);
+        minutUltimDescans = EEPROM_Llegeix(adrecaEepromAnimal + 6);
 
-        if(auxD != dia || auxM != mes || hora > auxH || (hora == auxH && minut >= auxMn + 2)) {
+        if(diaUltimDescans != dia || mesUltimDescans != mes || hora > horaUltimDescans || (hora == horaUltimDescans && minut >= minutUltimDescans + 2)) {
             sonAnimal[idxRevisaSon] = 1;
             tempsDespert[idxRevisaSon] = SON;
         } else {
@@ -673,10 +673,11 @@ static void ProcessaInitialize(void) {
     tempsGeneracio[2] = NumDespres();
     tempsGeneracio[3] = NumDespres();
 
-    comptGeneracio[0] = comptGeneracio[1] = comptGeneracio[2] = comptGeneracio[3] = 0;
-    comptProducte[0] = comptProducte[1] = comptProducte[2] = comptProducte[3] = 0;
+    segonsGeneracio[0] = segonsGeneracio[1] = segonsGeneracio[2] = segonsGeneracio[3] = 0;
+    segonsProducte[0] = segonsProducte[1] = segonsProducte[2] = segonsProducte[3] = 0;
     EEPROM_Escriu(0, MEMORIA_GUARDADA);
     if(dia != 0) {
+        TI_ResetTics(timerFarm);
         estatDespresLcd = 6; // funcionament
         estat = 2; // lcd clear
     } else {
@@ -737,7 +738,7 @@ static void ProcessaJava(void) {
                 rebellio = 1;
             } else {
                 rebellio = 0;
-                comptProducte[0] = comptProducte[1] = comptProducte[2] = comptProducte[3] = 0;
+                segonsProducte[0] = segonsProducte[1] = segonsProducte[2] = segonsProducte[3] = 0;
             }
             break;
 
@@ -775,6 +776,7 @@ static void LlegeixDataTerminal(unsigned char inicial) {
             IniciaMissatgeData(1);
             ActualitzaSonPerData();
             if(nomLCD[0] != 0) {
+                if(estat != 6) TI_ResetTics(timerFarm);
                 estatDespresLcd = 6; // funcionament
             } else {
                 estatDespresLcd = 5; // esperar java
@@ -810,20 +812,12 @@ void FARM_Motor(void) {
     ticsFarm = TI_GetTics(timerFarm);
 
     // Control temps
-    if(ticsFarm >= TICS_SEGON) {
+    if(ticsFarm >= UN_SEGON) {
         TI_ResetTics(timerFarm);
-        LED_CanviaSentit();
         if(estat == 6) NouSegon(); // funcionament
-        ticsFarm = 0;
     }
 
-    // Control LED
-    if(!rebellio && dia != 0 && nomLCD[0] != 0) {
-        ledActiu = 1;
-    } else {
-        ledActiu = 0;
-    }
-    LED_Motor(ticsFarm, ledActiu);
+    LED_Actiu(!rebellio && dia != 0 && nomLCD[0] != 0);
 
     // Carrega EEPROM
     if(idxCarregaEeprom != FI_CARREGA_EEPROM) {
@@ -832,7 +826,7 @@ void FARM_Motor(void) {
     }
 
     // Avisos LCD
-    if(hiHaAvisLcd && TI_GetTics(timerLcd) >= TICS_SEGON * 3) {
+    if(hiHaAvisLcd && TI_GetTics(timerLcd) >= UN_SEGON * 3) {
         hiHaAvisLcd = 0;
         if(quantsAvis == 0 && (estat == 6 || estat == 5)) { // funcionament o esperar java
             estatDespresLcd = estat;
@@ -898,8 +892,8 @@ void FARM_Motor(void) {
             GuardaAnimal(sleepIndex);
             IniciaTextJava(SLEEP_OK);
             esperaLdr = 0;
-        } else if(TI_GetTics(timerSleep) >= TICS_SEGON * T_DORMIR) {
-            IniciaTextJava(SLEEP_KO);
+        } else if(TI_GetTics(timerSleep) >= UN_SEGON * T_DORMIR) {
+            IniciaTextJava(SLEEP_NO);
             esperaLdr = 0;
         }
         return;
