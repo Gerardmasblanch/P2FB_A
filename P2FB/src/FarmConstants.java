@@ -19,9 +19,9 @@ public class FarmConstants {
 
 
     // Joystick navigation commands (configurable)
-    public static final String CMD_UP     = "MOVE_UP";               // Joystick UP
-    public static final String CMD_DOWN   = "MOVE_DOWN";             // Joystick DOWN
-    public static final String CMD_LEFT   = "MOVE_LEFT";             // Joystick LEFT
-    public static final String CMD_RIGHT  = "MOVE_RIGHT";            // Joystick RIGHT
-    public static final String CMD_SELECT = "SELECT";                // Joystick SELECT (pressed)
+    public static final String CMD_UP     = "U";                     // Joystick UP
+    public static final String CMD_DOWN   = "D";                     // Joystick DOWN
+    public static final String CMD_LEFT   = "L";                     // Joystick LEFT
+    public static final String CMD_RIGHT  = "R";                     // Joystick RIGHT
+    public static final String CMD_SELECT = "S";                     // Joystick SELECT (pressed)
 }

@@ -2,9 +2,20 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a8d44448-3f47-4c98-9076-3e5806c35bcf" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Main.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/P2FB/Consum$HistogramaPanel.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/P2FB/Consum.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/P2FB/Controller$1.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/P2FB/Controller$Animal.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/P2FB/Controller.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/P2FB/FarmConstants.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/P2FB/Main.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/P2FB/UI$1.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/P2FB/UI$2.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/P2FB/UI$3.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/P2FB/UI$4.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/P2FB/UI$5.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/P2FB/UI.class" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -19,7 +30,7 @@
     </option>
   </component>
   <component name="Git.Settings">
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 2
@@ -29,27 +40,30 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Application.Consum.executor": "Run",
-    "Application.Main.executor": "Run",
-    "Application.UI.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/eliay/IdeaProjects/P2FB/assets",
-    "nodejs_package_manager_path": "npm",
-    "onboarding.tips.debug.path": "C:/Users/eliay/IdeaProjects/P2FB/src/Main.java",
-    "project.structure.last.edited": "Project",
-    "project.structure.proportion": "0.15",
-    "project.structure.side.proportion": "0.2",
-    "settings.editor.selected.configurable": "project.propVCSSupport.DirectoryMappings",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Application.Consum.executor&quot;: &quot;Run&quot;,
+    &quot;Application.Main.executor&quot;: &quot;Run&quot;,
+    &quot;Application.UI.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/arnau/Documents/Universitat/Compus/PRAC B/P2FB_A/P2FB&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;onboarding.tips.debug.path&quot;: &quot;C:/Users/eliay/IdeaProjects/P2FB/src/Main.java&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;configurable.group.appearance&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\eliay\IdeaProjects\P2FB\assets" />
@@ -108,6 +122,11 @@
       <workItem from="1773598862223" duration="25000" />
       <workItem from="1773909809059" duration="935000" />
       <workItem from="1778161073979" duration="260000" />
+      <workItem from="1778526851509" duration="26000" />
+      <workItem from="1778527174766" duration="14000" />
+      <workItem from="1778857530406" duration="37000" />
+      <workItem from="1778857862520" duration="36000" />
+      <workItem from="1778858136308" duration="21000" />
     </task>
     <servers />
   </component>

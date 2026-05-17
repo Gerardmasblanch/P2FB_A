@@ -83,7 +83,10 @@ unsigned char SIOFARM_EnviaCaracter(char caracter) {
 }
 
 unsigned char SIOFARM_TxBuida(void) {
-    return (unsigned char)(estatTxSioFarm == 0 && quantsTx == 0);
+    if(estatTxSioFarm != 0) return 0;
+    if(quantsTx != 0) return 0;
+
+    return 1;
 }
 
 void SIOFARM_Motor(void) {

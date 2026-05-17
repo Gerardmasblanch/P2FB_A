@@ -116,7 +116,7 @@ void LcGotoXY(char Column, char Row) {
 // Pre : Column between 0 and 39, row between 0 and 3. 
 // Post: Sets the cursor to those coordinates. 
 // Post: The next order can last until 40us.
-	int Fisics;
+	unsigned char Fisics;
 	// calculating the effective address of the LCD ram. 
 	switch (Rows) {
 		case 2:
@@ -133,7 +133,8 @@ void LcGotoXY(char Column, char Row) {
 	}
 	// applying the command
 	WaitForBusy();
-	CantaIR((char)(SET_DDRAM | Fisics));
+	Fisics |= SET_DDRAM;
+	CantaIR(Fisics);
 }
 
 void LcPutChar(char c) {

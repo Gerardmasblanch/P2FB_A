@@ -39,7 +39,7 @@ void AD_Motor(void) {
     {
         case 0: // canvi de canal
 
-            ADCON0 = (unsigned char)((ADCON0 & 0xC3) | (canalActual << 2));
+            ADCON0bits.CHS = canalActual;
 
             TI_ResetTics(timerAdc);
             estat = 1;
