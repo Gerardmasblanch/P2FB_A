@@ -16,7 +16,7 @@
 
 #define MAX_TX 16
 #define MASK_TX 0x0F
-#define MAX_LINIA_RX 48
+#define MAX_LINIA_RX 40
 #define SIO_TX 0
 #define SIO_RX 1
 

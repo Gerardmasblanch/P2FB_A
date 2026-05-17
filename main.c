@@ -8,6 +8,7 @@
 #include "TAD_SIO.H"
 #include "TAD_ADC.H"
 #include "TAD_LCD.H"
+#include "TAD_LED.H"
 #include "TAD_JOYSTICK.H"
 #include "TAD_FARM.H"
 
@@ -41,18 +42,23 @@ void main(void)
     SIOFARM_Init();
     SIO_Init();
     AD_Init();
+    LED_Init();
     JOY_Init();
     FARM_Init();
+    TRISDbits.TRISD4 = 0;
+    LATDbits.LATD4 = 0;
 
     ei();
     LcInit(2, 16);
 
     while (1) {
+        LATDbits.LATD4 = 1;
         SIOFARM_Motor();
         SIO_Motor();
         LcMotor();
         AD_Motor();
         JOY_Motor();
         FARM_Motor();
+        LATDbits.LATD4 = 0;
     }
 }

@@ -13,18 +13,21 @@ static volatile char cuaRx[MIDA_CUA];
 static volatile unsigned char escriureRx;
 static volatile unsigned char llegirRx;
 static volatile unsigned char quantsRx;
+static char cuaTx[MIDA_CUA];
+static unsigned char escriureTx;
+static unsigned char llegirTx;
+static unsigned char quantsTx;
 
 static unsigned char estatRx;
 static unsigned char caracterRx;
 static unsigned char bitRx;
 static unsigned char ticsRx;
-unsigned char estatTxSioFarm;
+static unsigned char estatTxSioFarm;
 static unsigned char caracterTx;
 static unsigned char bitTx;
 static unsigned char ticsTx;
 
 static unsigned char timerSioFarm;
-static char caracterAux;
 
 static void MotorRx(void);
 static void MotorTx(void);
@@ -37,6 +40,9 @@ void SIOFARM_Init(void) {
     escriureRx = 0;
     llegirRx = 0;
     quantsRx = 0;
+    escriureTx = 0;
+    llegirTx = 0;
+    quantsTx = 0;
 
     estatRx = 0;
     estatTxSioFarm = 0;
@@ -46,6 +52,8 @@ void SIOFARM_Init(void) {
 }
 
 char SIOFARM_LlegeixCaracter(void) {
+    char caracterAux;
+
     di();
 
     if(quantsRx == 0) {
@@ -64,15 +72,18 @@ char SIOFARM_LlegeixCaracter(void) {
 }
 
 unsigned char SIOFARM_EnviaCaracter(char caracter) {
-    if(estatTxSioFarm != 0) return 0;
+    if(quantsTx >= MIDA_CUA) return 0;
 
-    caracterTx = caracter;
-    bitTx = 0;
-    ticsTx = 2;
-    PIN_TX = 0;
-    estatTxSioFarm = 1;
+    cuaTx[escriureTx] = caracter;
+    escriureTx++;
+    escriureTx &= MASK_CUA;
+    quantsTx++;
 
     return 1;
+}
+
+unsigned char SIOFARM_TxBuida(void) {
+    return (unsigned char)(estatTxSioFarm == 0 && quantsTx == 0);
 }
 
 void SIOFARM_Motor(void) {
@@ -86,14 +97,26 @@ void SIOFARM_Motor(void) {
 }
 
 static void MotorTx(void) {
-    if(estatTxSioFarm == 0) return;
-
-    ticsTx--;
-    if(ticsTx != 0) return;
-
-    ticsTx = 2;
+    if(estatTxSioFarm != 0) {
+        ticsTx--;
+        if(ticsTx != 0) return;
+        ticsTx = 2;
+    }
 
     switch(estatTxSioFarm) {
+        case 0: // TX repos
+            if(quantsTx == 0) return;
+
+            caracterTx = cuaTx[llegirTx];
+            llegirTx++;
+            llegirTx &= MASK_CUA;
+            quantsTx--;
+            bitTx = 0;
+            ticsTx = 2;
+            PIN_TX = 0;
+            estatTxSioFarm = 1;
+            break;
+
         case 1: // TX dades
             if((caracterTx & (1 << bitTx)) != 0) {
                 PIN_TX = 1;
