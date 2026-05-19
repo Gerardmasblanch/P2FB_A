@@ -26,6 +26,8 @@ static unsigned char estatTxSioFarm;
 static unsigned char caracterTx;
 static unsigned char bitTx;
 static unsigned char ticsTx;
+static const char *missatgeData;
+static unsigned char i;
 
 static unsigned char timerSioFarm;
 
@@ -46,6 +48,8 @@ void SIOFARM_Init(void) {
 
     estatRx = 0;
     estatTxSioFarm = 0;
+    missatgeData = 0;
+    i = 0;
 
     TI_NewTimer(&timerSioFarm);
     TI_ResetTics(timerSioFarm);
@@ -82,11 +86,9 @@ unsigned char SIOFARM_EnviaCaracter(char caracter) {
     return 1;
 }
 
-unsigned char SIOFARM_TxBuida(void) {
-    if(estatTxSioFarm != 0) return 0;
-    if(quantsTx != 0) return 0;
-
-    return 1;
+void SIOFARM_IniciaMissatge(const char *missatge) {
+    missatgeData = missatge;
+    i = 0;
 }
 
 void SIOFARM_Motor(void) {
@@ -96,6 +98,13 @@ void SIOFARM_Motor(void) {
 
     TI_ResetTics(timerSioFarm);
     MotorRx();
+    if(missatgeData != 0) {
+        if(missatgeData[i] == 0) {
+            missatgeData = 0;
+        } else if(SIOFARM_EnviaCaracter(missatgeData[i])) {
+            i++;
+        }
+    }
     MotorTx();
 }
 
@@ -192,28 +201,3 @@ static void MotorRx(void) {
             break;
     }
 }
-
-/*
- * Cicle de funcionament:
- *
- * repos:  1 1 1 1 1
- * start:  0
- * dades:  b0 b1 b2 b3 b4 b5 b6 b7
- * stop:   1
- * repos:  1 1 1...
- *
- * caracterRx es un unsigned char, per tant te 8 bits i no cal cap array.
- *
- * Exemple rebent dades: 0 1 1 0 1 0 1 0
- *
- * caracterRx inicial = 00000000
- *
- * bitRx = 1, dada = 1 -> caracterRx |= (1 << 1) -> 00000010
- * bitRx = 2, dada = 1 -> caracterRx |= (1 << 2) -> 00000110
- * bitRx = 4, dada = 1 -> caracterRx |= (1 << 4) -> 00010110
- * bitRx = 6, dada = 1 -> caracterRx |= (1 << 6) -> 01010110
- *
- * Els bits que arriben a 0 no es toquen, perque caracterRx ja comenca a 0.
- * Al final caracterRx conte el byte complet i es guarda a cuaRx.
- * El bit de stop es comprova al final i no es guarda com una dada mes.
- */

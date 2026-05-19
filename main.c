@@ -47,14 +47,11 @@ void main(void)
     LED_Init();
     JOY_Init();
     FARM_Init();
-    TRISDbits.TRISD4 = 0;
-    LATDbits.LATD4 = 0;
 
     ei();
     LcInit(2, 16);
 
     while (1) {
-        LATDbits.LATD4 = 1;
         SIOFARM_Motor();
         SIO_Motor();
         LcMotor();
@@ -62,6 +59,5 @@ void main(void)
         JOY_Motor();
         FARM_Motor();
         LED_Motor();
-        LATDbits.LATD4 = 0;
     }
 }

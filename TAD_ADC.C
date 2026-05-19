@@ -9,13 +9,14 @@ static unsigned char estat;
 static unsigned char timerAdc;
 
 void AD_Init(void) {
-    ADCON1 = 0x0C;       // AN0, AN1 i AN2 analogics
-    ADCON2 = 0b00010110; // justificacio a lesquerra, 4 Tad, Fosc/64
-    CMCON = 0x07;        // comparadors desactivats
 
-    TRISAbits.TRISA0 = 1; // JoyX AN0 indx0
-    TRISAbits.TRISA1 = 1; // JoyY AN1 indx1
-    TRISAbits.TRISA2 = 1; // LDR AN2 indx2
+    ADCON1 = 0x0C;       
+    ADCON2 = 0b00010110; 
+    CMCON = 0x07;        
+
+    TRISAbits.TRISA0 = 1; // X
+    TRISAbits.TRISA1 = 1; // Y
+    TRISAbits.TRISA2 = 1; // LDR 
 
     ADCON0bits.ADON = 1;
 
@@ -32,11 +33,11 @@ void AD_Init(void) {
 
 unsigned char AD_GetMostra(unsigned char index) {
     return mostres[index];
+
 }
 
 void AD_Motor(void) {
-    switch(estat)
-    {
+    switch(estat){
         case 0: // canvi de canal
 
             ADCON0bits.CHS = canalActual;
@@ -75,8 +76,3 @@ void AD_Motor(void) {
             break;
     }
 }
-
-/*
- * LDR a AD_GetMostra(2):
- *   0-40 tapat, 150-200 llum normal, ~230 llum directa.
- */

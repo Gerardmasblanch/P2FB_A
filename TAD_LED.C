@@ -19,12 +19,7 @@ void LED_Init(void) {
 }
 
 void LED_Actiu(unsigned char actiu) {
-    if(actiu && !ledActiu) {
-        ledBaixant = 0;
-        TI_ResetTics(timerLed);
-    }
     ledActiu = actiu;
-    if(!ledActiu) LATAbits.LATA4 = 0;
 }
 
 void LED_Motor(void) {
